@@ -1,0 +1,2087 @@
+// =============================================================================
+// MATRIX ENTERPRISE DATABASE SCHEMA
+// =============================================================================
+// Architectural design for field service + digital twin + AI troubleshooting.
+//
+// Runtime today: SQLite (local / desktop / offline-friendly)
+// Future: PostgreSQL on Railway (swap provider; keep cuid string IDs)
+//
+// UI is NOT connected. Seed data is NOT imported.
+// Placeholder models are included so later patches do not require rewrites.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// -----------------------------------------------------------------------------
+// TENANCY & ACCESS CONTROL
+// -----------------------------------------------------------------------------
+
+/// Root tenant: one Matrix company / service organization.
+/// Enables multiple companies, Railway multi-tenant, or single-org desktop mode.
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String?  @unique
+  settings  String? // JSON blob for tenant preferences
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  syncedAt  DateTime?
+
+  users              User[]
+  roles              Role[]
+  customers          Customer[]
+  warehouseLocations WarehouseLocation[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  knowledgeArticles KnowledgeBaseArticle[]
+  serviceBulletins   ServiceBulletin[]
+  errorCodes         ErrorCode[]
+  firmwareReleases   Firmware[]
+}
+
+/// Named capability set (Admin, Dispatcher, Technician, Inventory Clerk, etc.).
+model Role {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  permissions    String? // JSON array of permission keys
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  users UserRole[]
+
+  @@unique([organizationId, name])
+}
+
+model User {
+  id             String        @id @default(cuid())
+  organizationId String
+  email          String
+  name           String?
+  passwordHash   String?
+  status         String? // active | inactive | invited
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+  syncedAt       DateTime?
+
+  roles               UserRole[]
+  assignedTickets     ServiceTicket[]          @relation("AssignedTechnician")
+  technicianNotes     TechnicianNote[]
+  requestedPartOrders PartOrder[]              @relation("RequestedByUser")
+  attachments         Attachment[]             @relation("UploadedByUser")
+  photos              Photo[]                  @relation("CapturedByUser")
+  customerSignatures  CustomerSignature[]      @relation("CapturedByUser")
+  aiConversations     AIConversation[]
+  aiSessions          AITroubleshootingSession[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+
+  @@unique([organizationId, email])
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+}
+
+// -----------------------------------------------------------------------------
+// CUSTOMERS, SITES, FLEET
+// -----------------------------------------------------------------------------
+
+model Customer {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  accountNumber  String?
+  /// Patch 40 — enterprise CRM customer number (may mirror accountNumber).
+  customerNumber String?
+  status         String?
+  industry       String?
+  parentCustomerId String?
+  taxId          String?
+  billingAddress String?
+  primaryAddress String?
+  notes          String?
+  website        String?
+  timeZone       String?
+  preferredBusinessHours String?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  parentCustomer Customer?    @relation("CustomerHierarchy", fields: [parentCustomerId], references: [id])
+  childCustomers Customer[]   @relation("CustomerHierarchy")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+  syncedAt       DateTime?
+
+  locations Location[]
+  contacts  CustomerContact[]
+  contracts CustomerContract[]
+  documents CustomerDocument[]
+
+  @@index([organizationId])
+  @@index([customerNumber])
+  @@index([parentCustomerId])
+  @@index([status])
+}
+
+/// Customer site / room / plant (Customer Locations).
+model Location {
+  id         String   @id @default(cuid())
+  customerId String
+  name       String
+  /// Patch 40 site number for enterprise lookups.
+  siteNumber String?
+  address    String?
+  city       String?
+  region     String?
+  postalCode String?
+  country    String?
+  latitude   Float?
+  longitude  Float?
+  timezone   String?
+  businessHours String?
+  loadingDockInstructions String?
+  parkingInstructions String?
+  securityProcedures String?
+  buildingAccessInstructions String?
+  afterHoursAccess String?
+  siteNotes String?
+  assignedTechnician String?
+  customer   Customer @relation(fields: [customerId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+  syncedAt   DateTime?
+
+  printers Printer[]
+
+  @@index([customerId])
+  @@index([siteNumber])
+}
+
+/// Catalog of supported machine models (GD9630, GL9730, Valezus, FT/FW/X1 later).
+model PrinterModel {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  series       String?
+  deviceType   String?
+  capabilities String? // JSON
+  /// Editable maintenance interval setup (Patch 34) — copies between services.
+  pmIntervalCopies         Int?
+  cleaningIntervalCopies   Int?
+  jointUnitIntervalCopies  Int?
+  dtfPmIntervalCopies      Int?
+  warningThresholdCopies   Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  printers           Printer[]
+  pmKitTemplates     PMKitTemplate[]
+  parts              Part[]            @relation("PartCompatibleModels")
+  knowledgeArticles  KnowledgeBaseArticle[]
+  serviceBulletins   ServiceBulletin[]
+  errorCodes         ErrorCode[]
+  firmwareReleases   Firmware[]
+  aiRecommendations  AIRecommendation[]
+}
+
+/// Physical printer asset (Digital Twin root).
+model Printer {
+  id             String       @id @default(cuid())
+  locationId     String
+  printerModelId String
+  assetId        String?
+  serialNumber   String?
+  status         String?
+  firmwareVersion String?
+  controllerVersion String?
+  installedAt    DateTime?
+  warrantyStart  DateTime?
+  warrantyEnd    DateTime?
+  purchaseDate   DateTime?
+  leaseInfo      String?
+  ownership      String?
+  macAddress     String?
+  ipAddress      String?
+  hostname       String?
+  department     String?
+  floor          String?
+  room           String?
+  latitude       Float?
+  longitude      Float?
+  qrLabel        String?
+  barcode        String?
+
+  /// Copy count & PM foundation (Patch 33–34) — nullable until live data is connected.
+  currentCopyCount   Int?
+  previousCopyCount  Int?
+  monthlyVolume      Int?
+  lastPMDate         DateTime?
+  lastCleaningDate   DateTime?
+  lastJointUnitDate  DateTime?
+  lastDTFPMDate      DateTime?
+  /// Date placeholders — volume-based date estimates deferred.
+  nextPMDue          DateTime?
+  nextCleaningDue    DateTime?
+  nextJointUnitDue   DateTime?
+  nextDTFDue         DateTime?
+  /// Count baselines & calculated due counts (Patch 34).
+  lastPMCopyCount         Int?
+  lastCleaningCopyCount   Int?
+  lastJointUnitCopyCount  Int?
+  lastDTFPMCopyCount      Int?
+  nextPMDueCount          Int?
+  nextCleaningDueCount    Int?
+  nextJointUnitDueCount   Int?
+  nextDTFDueCount         Int?
+
+  location       Location     @relation(fields: [locationId], references: [id])
+  printerModel   PrinterModel @relation(fields: [printerModelId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+  syncedAt       DateTime?
+
+  serviceTickets      ServiceTicket[]
+  workOrders          WorkOrder[]
+  pmHistory           PMHistory[]
+  partsInstalled      PartInstalled[]
+  technicianNotes     TechnicianNote[]
+  partOrders          PartOrder[]
+  attachments         Attachment[]
+  photos              Photo[]
+  customerSignatures  CustomerSignature[]
+  meterHistory        MeterHistory[]
+  copyCountHistory    CopyCountHistory[]
+  maintenanceCompletions MaintenanceCompletion[]
+  maintenanceSchedules   MaintenanceSchedule[]
+  maintenanceAuditLogs   MaintenanceAuditLog[]
+  printerAlerts       PrinterAlert[]
+  aiSessions          AITroubleshootingSession[]
+  warranties          AssetWarranty[]
+  lifecycleEvents     AssetLifecycleEvent[]
+  relationshipsAsParent AssetRelationship[] @relation("AssetParent")
+  relationshipsAsChild  AssetRelationship[] @relation("AssetChild")
+
+  @@unique([assetId])
+  @@index([locationId])
+  @@index([printerModelId])
+  @@index([serialNumber])
+  @@index([qrLabel])
+  @@index([barcode])
+  @@index([ipAddress])
+  @@index([hostname])
+}
+
+// -----------------------------------------------------------------------------
+// SERVICE WORKFLOW
+// -----------------------------------------------------------------------------
+
+model ServiceTicket {
+  id             String   @id @default(cuid())
+  ticketNumber   String?
+  printerId      String
+  customerId     String?
+  customerLocationId String?
+  printerSerialNumber String?
+  printerModel   String?
+  title          String?
+  description    String?
+  problemCategory String?
+  assignedToId   String?
+  assignedBy     String?
+  status         String?
+  priority       String?
+  source         String?
+  jobType        String?
+  issueSummary   String?
+  problemDescription String?
+  requestedBy    String?
+  requestedByEmail String?
+  requestedByPhone String?
+  openedAt       DateTime?
+  acknowledgedAt DateTime?
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
+  technicianArrivalTime DateTime?
+  workStartedAt  DateTime?
+  workCompletedAt DateTime?
+  closedAt       DateTime?
+  responseTimeMinutes Int?
+  repairTimeMinutes Int?
+  totalDowntimeMinutes Int?
+  meterCountAtOpen Int?
+  meterCountAtClose Int?
+  resolutionSummary String?
+  internalNotes  String?
+  customerNotes  String?
+  customerSignature String?
+  customerSignatureDate DateTime?
+  customerSatisfactionRating Int?
+  followUpRequired Boolean @default(false)
+  followUpDate   DateTime?
+  warrantyStatus String?
+  serviceContractStatus String?
+  billable       Boolean  @default(true)
+  laborHours     Float?
+  travelHours    Float?
+  mileage        Float?
+  remoteResolution Boolean @default(false)
+  escalationLevel Int     @default(0)
+  parentTicketId String?
+  active         Boolean  @default(true)
+  printer        Printer  @relation(fields: [printerId], references: [id])
+  assignedTo     User?    @relation("AssignedTechnician", fields: [assignedToId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+  syncedAt       DateTime?
+
+  technicianNotes    TechnicianNote[]
+  partOrders         PartOrder[]
+  attachments        Attachment[]
+  photos             Photo[]
+  customerSignatures CustomerSignature[]
+  aiSessions         AITroubleshootingSession[]
+  workOrders         WorkOrder[]
+  ticketUpdates      ServiceTicketUpdate[]
+  ticketParts        ServiceTicketPart[]
+  ticketAttachments  ServiceTicketAttachment[]
+  ticketLabor        ServiceTicketLabor[]
+  dispatchAssignments DispatchAssignment[]
+
+  @@unique([ticketNumber])
+  @@index([printerId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@index([customerId])
+  @@index([printerSerialNumber])
+}
+
+/// Enterprise work order backbone (Patch 37) — UI uses sessionStorage until wired.
+model WorkOrder {
+  id                   String   @id @default(cuid())
+  workOrderNumber      String   @unique
+  title                String
+  description          String?
+  customerId           String?
+  siteId               String?
+  printerId            String?
+  serviceTicketId      String?
+  serviceType          String?
+  priority             String?
+  status               String?
+  source               String?
+  assignedTechnician   String?
+  secondaryTechnician  String?
+  requestedBy          String?
+  createdBy            String?
+  scheduledStart       DateTime?
+  scheduledEnd         DateTime?
+  actualStart          DateTime?
+  actualEnd            DateTime?
+  completedDate        DateTime?
+  estimatedHours       Float?
+  actualHours          Float?
+  travelTime           Float?
+  mileage              Float?
+  laborRate            Float?
+  laborCost            Float?
+  notes                String?
+  internalNotes        String?
+  customerVisibleNotes String?
+  customerSignature    String?
+  copyCountAtStart     Int?
+  copyCountAtEnd       Int?
+  printer              Printer?       @relation(fields: [printerId], references: [id])
+  serviceTicket        ServiceTicket? @relation(fields: [serviceTicketId], references: [id])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  timelineEvents WorkOrderTimelineEvent[]
+  auditEntries   WorkOrderAuditEntry[]
+  partLines      WorkOrderPartLine[]
+  files          WorkOrderFile[]
+
+  @@index([status, priority])
+  @@index([assignedTechnician, scheduledStart])
+  @@index([printerId])
+  @@index([customerId])
+}
+
+model WorkOrderTimelineEvent {
+  id            String    @id @default(cuid())
+  workOrderId   String
+  type          String
+  title         String?
+  description   String?
+  actor         String?
+  previousValue String?
+  newValue      String?
+  occurredAt    DateTime  @default(now())
+  workOrder     WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@index([workOrderId, occurredAt])
+}
+
+model WorkOrderAuditEntry {
+  id            String    @id @default(cuid())
+  workOrderId   String
+  field         String
+  previousValue String?
+  newValue      String?
+  actor         String?
+  action        String?
+  occurredAt    DateTime  @default(now())
+  workOrder     WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@index([workOrderId, occurredAt])
+}
+
+model WorkOrderPartLine {
+  id          String    @id @default(cuid())
+  workOrderId String
+  partNumber  String
+  description String?
+  quantity    Int       @default(1)
+  unitCost    Float?
+  source      String?
+  addedBy     String?
+  addedAt     DateTime  @default(now())
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@index([workOrderId])
+}
+
+model WorkOrderFile {
+  id          String    @id @default(cuid())
+  workOrderId String
+  kind        String?
+  fileName    String
+  mimeType    String?
+  sizeBytes   Int?
+  uploadedBy  String?
+  storageRef  String?
+  notes       String?
+  uploadedAt  DateTime  @default(now())
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@index([workOrderId, uploadedAt])
+}
+
+model PMHistory {
+  id              String    @id @default(cuid())
+  printerId       String
+  pmKitTemplateId String?
+  performedAt     DateTime?
+  performedById   String?
+  meterAtService  Int?
+  notes           String?
+  printer         Printer   @relation(fields: [printerId], references: [id])
+  pmKitTemplate   PMKitTemplate? @relation(fields: [pmKitTemplateId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  syncedAt        DateTime?
+
+  @@index([printerId])
+}
+
+model TechnicianNote {
+  id        String         @id @default(cuid())
+  body      String?
+  printerId String?
+  ticketId  String?
+  authorId  String?
+  printer   Printer?       @relation(fields: [printerId], references: [id])
+  ticket    ServiceTicket? @relation(fields: [ticketId], references: [id])
+  author    User?          @relation(fields: [authorId], references: [id])
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  syncedAt  DateTime?
+
+  @@index([printerId])
+  @@index([ticketId])
+}
+
+// -----------------------------------------------------------------------------
+// PARTS, INVENTORY, PM KITS, ORDERS
+// -----------------------------------------------------------------------------
+
+model Part {
+  id                      String   @id @default(cuid())
+  partNumber              String?  @unique
+  manufacturerPartNumber  String?
+  name                    String
+  description             String?
+  category                String?
+  subcategory             String?
+  assembly                String?
+  diagramCalloutNumber    String?
+  unitOfMeasure           String?  @default("EA")
+  preferredVendorId       String?
+  alternateVendorIds      String? // JSON array of vendor ids
+  unitCost                Float?
+  listPrice               Float?
+  weight                  Float?
+  dimensions              String?
+  leadTimeDays            Int?
+  warranty                String?
+  photoUrl                String?
+  technicalDocuments      String? // JSON array of document URLs/paths
+  safetyNotes             String?
+  status                  String?  @default("ACTIVE") // ACTIVE | INACTIVE
+  barcode                 String?
+  qrCode                  String?
+  reorderLevel            Int?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  deletedAt               DateTime?
+  syncedAt                DateTime?
+
+  preferredVendor  Vendor?               @relation("PartPreferredVendor", fields: [preferredVendorId], references: [id])
+  inventoryItems   Inventory[]
+  pmKitItems       PMKitItem[]
+  partsInstalled   PartInstalled[]
+  partOrderItems   PartOrderItem[]
+  transactions     InventoryTransaction[]
+  reservations     InventoryReservation[]
+  purchaseLines    PurchaseRequestLine[]
+  compatibleModels PrinterModel[]        @relation("PartCompatibleModels")
+
+  @@index([barcode])
+  @@index([qrCode])
+  @@index([category, subcategory])
+  @@index([status])
+}
+
+/// Component instance currently installed on a printer (life tracking later).
+model PartInstalled {
+  id           String    @id @default(cuid())
+  printerId    String
+  partId       String
+  installedAt  DateTime?
+  removedAt    DateTime?
+  lifeUsedPct  Int?
+  printer      Printer   @relation(fields: [printerId], references: [id])
+  part         Part      @relation(fields: [partId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  syncedAt     DateTime?
+
+  @@index([printerId])
+}
+
+/// Logical stock location: warehouse, truck, customer site, etc.
+model WarehouseLocation {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  code           String?
+  /// MAIN_WAREHOUSE | REGIONAL_WAREHOUSE | TECHNICIAN_VEHICLE | CUSTOMER_SITE | TEMPORARY_JOB_SITE | CONSIGNMENT | RETURNED_PARTS
+  type           String?
+  technician     String?
+  customerName   String?
+  region         String?
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  inventory      Inventory[]
+  sourceTxns     InventoryTransaction[] @relation("TxnSourceLocation")
+  destTxns       InventoryTransaction[] @relation("TxnDestLocation")
+  reservations   InventoryReservation[]
+
+  @@index([type])
+  @@index([code])
+}
+
+model Inventory {
+  id                  String             @id @default(cuid())
+  partId              String
+  warehouseLocationId String?
+  quantityOnHand      Int                @default(0)
+  quantityReserved    Int                @default(0)
+  quantityOnOrder     Int                @default(0)
+  quantityCommitted   Int                @default(0)
+  /// Legacy alias field — prefer quantityOnHand
+  quantity            Int                @default(0)
+  minimumQuantity     Int?
+  maximumQuantity     Int?
+  reorderPoint        Int?
+  reorderQuantity     Int?
+  lastCountDate       DateTime?
+  part                Part               @relation(fields: [partId], references: [id])
+  warehouseLocation   WarehouseLocation? @relation(fields: [warehouseLocationId], references: [id])
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  syncedAt            DateTime?
+
+  @@unique([partId, warehouseLocationId])
+  @@index([partId])
+  @@index([warehouseLocationId])
+}
+
+/// Immutable inventory movement history — never delete rows.
+model InventoryTransaction {
+  id                     String             @id @default(cuid())
+  type                   String // RECEIVE | CONSUME | TRANSFER | RETURN | ADJUSTMENT | CYCLE_COUNT | SCRAP | WARRANTY_RETURN | CUSTOMER_RETURN
+  partId                 String
+  quantity               Int
+  previousOnHand         Int
+  newOnHand              Int
+  reason                 String?
+  userId                 String?
+  userName               String?
+  workOrderId            String?
+  purchaseRequestId      String?
+  sourceLocationId       String?
+  destinationLocationId  String?
+  occurredAt             DateTime           @default(now())
+  part                   Part               @relation(fields: [partId], references: [id])
+  sourceLocation         WarehouseLocation? @relation("TxnSourceLocation", fields: [sourceLocationId], references: [id])
+  destinationLocation    WarehouseLocation? @relation("TxnDestLocation", fields: [destinationLocationId], references: [id])
+  purchaseRequest        PurchaseRequest?   @relation(fields: [purchaseRequestId], references: [id])
+  createdAt              DateTime           @default(now())
+
+  @@index([partId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([workOrderId])
+  @@index([purchaseRequestId])
+}
+
+model InventoryReservation {
+  id                 String             @id @default(cuid())
+  partId             String
+  locationId         String
+  quantity           Int
+  /// SCHEDULED_PM | WORK_ORDER | EMERGENCY_CALL | INSTALLATION
+  purpose            String
+  relatedRecordId    String?
+  relatedRecordType  String?
+  reservedBy         String?
+  status             String             @default("ACTIVE") // ACTIVE | RELEASED | CONSUMED
+  reservedAt         DateTime           @default(now())
+  releasedAt         DateTime?
+  part               Part               @relation(fields: [partId], references: [id])
+  location           WarehouseLocation  @relation(fields: [locationId], references: [id])
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([partId, locationId, status])
+  @@index([relatedRecordId])
+}
+
+model Vendor {
+  id                   String   @id @default(cuid())
+  name                 String
+  contactName          String?
+  phone                String?
+  email                String?
+  supportedPartNumbers String? // JSON array
+  leadTimeDays         Int?
+  shippingMethods      String? // JSON array
+  preferred            Boolean  @default(false)
+  onTimeRate           Float?
+  qualityScore         Float?
+  active               Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  preferredParts   Part[]            @relation("PartPreferredVendor")
+  purchaseRequests PurchaseRequest[]
+
+  @@index([name])
+  @@index([preferred])
+}
+
+model PurchaseRequest {
+  id               String    @id @default(cuid())
+  requestNumber    String    @unique
+  requesterId      String?
+  requesterName    String?
+  approverId       String?
+  approverName     String?
+  /// CRITICAL | HIGH | NORMAL | LOW
+  priority         String    @default("NORMAL")
+  vendorId         String?
+  justification    String?
+  expectedDelivery DateTime?
+  /// DRAFT | PENDING_APPROVAL | APPROVED | ORDERED | RECEIVED | CANCELLED
+  status           String    @default("DRAFT")
+  vendor           Vendor?   @relation(fields: [vendorId], references: [id])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  lines        PurchaseRequestLine[]
+  transactions InventoryTransaction[]
+
+  @@index([status])
+  @@index([requesterId])
+}
+
+model PurchaseRequestLine {
+  id                String          @id @default(cuid())
+  purchaseRequestId String
+  partId            String
+  quantity          Int             @default(1)
+  unitCost          Float?
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+  part              Part            @relation(fields: [partId], references: [id])
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([purchaseRequestId])
+}
+
+model PMKitTemplate {
+  id             String        @id @default(cuid())
+  name           String
+  printerModelId String?
+  description    String?
+  printerModel   PrinterModel? @relation(fields: [printerModelId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  items      PMKitItem[]
+  pmHistory  PMHistory[]
+}
+
+model PMKitItem {
+  id              String        @id @default(cuid())
+  pmKitTemplateId String
+  partId          String
+  quantity        Int           @default(1)
+  pmKitTemplate   PMKitTemplate @relation(fields: [pmKitTemplateId], references: [id])
+  part            Part          @relation(fields: [partId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model PartOrder {
+  id            String         @id @default(cuid())
+  status        String?
+  priority      String?
+  requestType   String?
+  neededBy      DateTime?
+  printerId     String?
+  ticketId      String?
+  requestedById String?
+  printer       Printer?       @relation(fields: [printerId], references: [id])
+  ticket        ServiceTicket? @relation(fields: [ticketId], references: [id])
+  requestedBy   User?          @relation("RequestedByUser", fields: [requestedById], references: [id])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  syncedAt      DateTime?
+
+  items PartOrderItem[]
+
+  @@index([status])
+}
+
+model PartOrderItem {
+  id          String    @id @default(cuid())
+  partOrderId String
+  partId      String
+  quantity    Int       @default(1)
+  partOrder   PartOrder @relation(fields: [partOrderId], references: [id])
+  part        Part      @relation(fields: [partId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// DIGITAL TWIN SIGNALS
+// -----------------------------------------------------------------------------
+
+/// Time-series meter / counter readings for a printer.
+model MeterHistory {
+  id          String   @id @default(cuid())
+  printerId   String
+  totalCount  Int?
+  blackCount  Int?
+  colorCount  Int?
+  readAt      DateTime @default(now())
+  source      String? // manual | rra | technician
+  printer     Printer  @relation(fields: [printerId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([printerId, readAt])
+}
+
+/// Manual / technician copy-count entries (Patch 33–34 foundation).
+model CopyCountHistory {
+  id               String   @id @default(cuid())
+  printerId        String
+  recordedAt       DateTime @default(now())
+  copyCount        Int
+  enteredBy        String?
+  notes            String?
+  previousCount    Int?
+  lowerCountReason String?
+  printer          Printer  @relation(fields: [printerId], references: [id])
+  createdAt        DateTime @default(now())
+
+  @@index([printerId, recordedAt])
+}
+
+/// Completed PM / cleaning / joint / DTF events (auditable history).
+model MaintenanceCompletion {
+  id                   String   @id @default(cuid())
+  printerId            String
+  kind                 String // PM | CLEANING | JOINT_UNIT | DTF_PM
+  completedAt          DateTime
+  copyCountAtCompletion Int
+  technician           String?
+  notes                String?
+  workPerformed        String?
+  printer              Printer  @relation(fields: [printerId], references: [id])
+  createdAt            DateTime @default(now())
+
+  @@index([printerId, completedAt])
+}
+
+/// Planned maintenance visits (Patch 35) — notifications deferred.
+model MaintenanceSchedule {
+  id                    String   @id @default(cuid())
+  printerId             String
+  kind                  String // PM | CLEANING | JOINT_UNIT | DTF_PM
+  scheduledDate         DateTime
+  technician            String?
+  priority              String? // LOW | NORMAL | HIGH | URGENT
+  expectedDurationHours Float?
+  notes                 String?
+  createdBy             String?
+  printer               Printer  @relation(fields: [printerId], references: [id])
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([printerId, scheduledDate])
+  @@index([technician, scheduledDate])
+}
+
+/// Fleet maintenance dashboard audit trail (Patch 35).
+model MaintenanceAuditLog {
+  id            String   @id @default(cuid())
+  printerId     String?
+  action        String
+  actor         String?
+  details       String?
+  previousValue String?
+  newValue      String?
+  printer       Printer? @relation(fields: [printerId], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([printerId, createdAt])
+  @@index([action, createdAt])
+}
+
+/// Active or historical machine alerts / fault conditions.
+model PrinterAlert {
+  id           String    @id @default(cuid())
+  printerId    String
+  severity     String?
+  code         String?
+  message      String?
+  acknowledged Boolean   @default(false)
+  resolvedAt   DateTime?
+  printer      Printer   @relation(fields: [printerId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([printerId, acknowledged])
+}
+
+// -----------------------------------------------------------------------------
+// KNOWLEDGE & DOCUMENTATION
+// -----------------------------------------------------------------------------
+
+model KnowledgeBaseArticle {
+  id             String        @id @default(cuid())
+  organizationId String?
+  printerModelId String?
+  title          String
+  category       String?
+  body           String?
+  status         String? // draft | published
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  printerModel   PrinterModel? @relation(fields: [printerModelId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([printerModelId])
+}
+
+model ServiceBulletin {
+  id             String        @id @default(cuid())
+  organizationId String?
+  printerModelId String?
+  bulletinNumber String?
+  title          String
+  body           String?
+  publishedAt    DateTime?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  printerModel   PrinterModel? @relation(fields: [printerModelId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model ErrorCode {
+  id             String        @id @default(cuid())
+  organizationId String?
+  printerModelId String?
+  code           String
+  title          String?
+  description    String?
+  causes         String? // JSON
+  remedies       String? // JSON
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  printerModel   PrinterModel? @relation(fields: [printerModelId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([code])
+  @@index([printerModelId])
+}
+
+model Firmware {
+  id             String        @id @default(cuid())
+  organizationId String?
+  printerModelId String?
+  version        String
+  releaseNotes   String?
+  releasedAt     DateTime?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  printerModel   PrinterModel? @relation(fields: [printerModelId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([printerModelId, version])
+}
+
+// -----------------------------------------------------------------------------
+// MEDIA & SIGN-OFF
+// -----------------------------------------------------------------------------
+
+model Attachment {
+  id           String         @id @default(cuid())
+  fileName     String?
+  mimeType     String?
+  storageKey   String?
+  printerId    String?
+  ticketId     String?
+  uploadedById String?
+  printer      Printer?       @relation(fields: [printerId], references: [id])
+  ticket       ServiceTicket? @relation(fields: [ticketId], references: [id])
+  uploadedBy   User?          @relation("UploadedByUser", fields: [uploadedById], references: [id])
+  createdAt    DateTime       @default(now())
+  syncedAt     DateTime?
+}
+
+model Photo {
+  id            String         @id @default(cuid())
+  caption       String?
+  storageKey    String?
+  printerId     String?
+  ticketId      String?
+  capturedById  String?
+  printer       Printer?       @relation(fields: [printerId], references: [id])
+  ticket        ServiceTicket? @relation(fields: [ticketId], references: [id])
+  capturedBy    User?          @relation("CapturedByUser", fields: [capturedById], references: [id])
+  createdAt     DateTime       @default(now())
+  syncedAt      DateTime?
+}
+
+model CustomerSignature {
+  id           String         @id @default(cuid())
+  signerName   String?
+  storageKey   String?
+  signedAt     DateTime?
+  printerId    String?
+  ticketId     String?
+  capturedById String?
+  printer      Printer?       @relation(fields: [printerId], references: [id])
+  ticket       ServiceTicket? @relation(fields: [ticketId], references: [id])
+  capturedBy   User?          @relation("CapturedByUser", fields: [capturedById], references: [id])
+  createdAt    DateTime       @default(now())
+  syncedAt     DateTime?
+}
+
+// -----------------------------------------------------------------------------
+// AI TROUBLESHOOTING
+// -----------------------------------------------------------------------------
+
+model AIConversation {
+  id        String   @id @default(cuid())
+  userId    String?
+  title     String?
+  context   String? // JSON snapshot of printer/ticket context
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages AIMessage[]
+  sessions AITroubleshootingSession[]
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  role           String // user | assistant | system
+  content        String?
+  conversation   AIConversation @relation(fields: [conversationId], references: [id])
+  createdAt      DateTime       @default(now())
+
+  recommendations AIRecommendation[]
+}
+
+model AIRecommendation {
+  id               String     @id @default(cuid())
+  messageId        String?
+  printerModelId   String?
+  title            String?
+  summary          String?
+  confidence       Float?
+  suggestedChecks  String? // JSON
+  message          AIMessage? @relation(fields: [messageId], references: [id])
+  printerModel     PrinterModel? @relation(fields: [printerModelId], references: [id])
+  createdAt        DateTime   @default(now())
+}
+
+/// Structured diagnostic session tying AI chat to a printer / ticket.
+model AITroubleshootingSession {
+  id             String          @id @default(cuid())
+  userId         String?
+  printerId      String?
+  ticketId       String?
+  conversationId String?
+  issueCategory  String?
+  status         String? // open | resolved | abandoned
+  user           User?           @relation(fields: [userId], references: [id])
+  printer        Printer?        @relation(fields: [printerId], references: [id])
+  ticket         ServiceTicket?  @relation(fields: [ticketId], references: [id])
+  conversation   AIConversation? @relation(fields: [conversationId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// PLATFORM OPERATIONS
+// -----------------------------------------------------------------------------
+
+model Notification {
+  id                 String        @id @default(cuid())
+  organizationId     String?
+  userId             String?
+  /// Patch 36 notification type (PM_DUE_SOON, etc.)
+  type               String?
+  title              String?
+  body               String?
+  message            String?
+  printerId          String?
+  customerName       String?
+  /// JSON array of target user ids/names
+  userTargets        String?
+  priority           String? // LOW | NORMAL | HIGH | URGENT
+  relatedRecordType  String?
+  relatedRecordId    String?
+  readAt             DateTime?
+  organization       Organization? @relation(fields: [organizationId], references: [id])
+  user               User?         @relation(fields: [userId], references: [id])
+  createdAt          DateTime      @default(now())
+
+  @@index([userId, readAt])
+  @@index([type, createdAt])
+  @@index([priority, createdAt])
+  @@index([printerId, createdAt])
+}
+
+/// Configurable reminder thresholds (Patch 36) — email/SMS reserved later.
+model NotificationPreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  inAppEnabled          Boolean  @default(true)
+  dailySummaryEnabled   Boolean  @default(true)
+  weeklySummaryEnabled  Boolean  @default(false)
+  /// Reserved for future email delivery
+  emailEnabled          Boolean  @default(false)
+  /// Reserved for future SMS delivery
+  smsEnabled            Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model ReminderThresholdConfig {
+  id                      String   @id @default(cuid())
+  label                   String?
+  pmDueSoonCopies         Int      @default(100000)
+  cleaningDueSoonCopies   Int      @default(50000)
+  dueTodayCopies          Int      @default(0)
+  overdueBand1Copies      Int      @default(50000)
+  overdueBand2Copies      Int      @default(100000)
+  notes                   String?
+  updatedBy               String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+/// Immutable activity trail for compliance and multi-tech accountability.
+model AuditLog {
+  id             String        @id @default(cuid())
+  organizationId String?
+  actorId        String?
+  action         String
+  entityType     String?
+  entityId       String?
+  payload        String? // JSON before/after snapshot
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  actor          User?         @relation(fields: [actorId], references: [id])
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+}
+
+// -----------------------------------------------------------------------------
+// FIELD OFFLINE / SYNC (Patch 39)
+// -----------------------------------------------------------------------------
+
+model DeviceRegistration {
+  id           String   @id @default(cuid())
+  userId       String?
+  deviceLabel  String?
+  userAgent    String?
+  lastSeenAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model WorkSession {
+  id               String    @id @default(cuid())
+  workOrderId      String?
+  technicianId     String?
+  technicianName   String?
+  active           Boolean   @default(false)
+  travelStartedAt  DateTime?
+  arrivedAt        DateTime?
+  workStartedAt    DateTime?
+  completedAt      DateTime?
+  totalTravelMs    Int       @default(0)
+  totalLaborMs     Int       @default(0)
+  totalPausedMs    Int       @default(0)
+  eventsJson       String? // JSON array of session events
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([workOrderId])
+  @@index([technicianId, active])
+}
+
+/// Client-originated offline operation (idempotent via operationId).
+model OfflineOperation {
+  id               String    @id @default(cuid())
+  operationId      String    @unique
+  type             String
+  status           String    @default("PENDING")
+  userId           String?
+  technicianName   String?
+  workOrderId      String?
+  printerId        String?
+  payload          String? // JSON
+  retryCount       Int       @default(0)
+  lastError        String?
+  conflictStatus   String?
+  dependsOnJson    String?
+  synchronizedAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  syncAttempts SyncAttempt[]
+  conflicts    SyncConflict[]
+
+  @@index([status, createdAt])
+  @@index([userId, status])
+  @@index([workOrderId])
+}
+
+model SyncAttempt {
+  id                 String    @id @default(cuid())
+  offlineOperationId String?
+  startedAt          DateTime  @default(now())
+  finishedAt         DateTime?
+  status             String
+  processed          Int       @default(0)
+  succeeded          Int       @default(0)
+  failed             Int       @default(0)
+  conflicts          Int       @default(0)
+  errorsJson         String?
+  offlineOperation   OfflineOperation? @relation(fields: [offlineOperationId], references: [id])
+
+  @@index([startedAt])
+}
+
+model SyncConflict {
+  id                 String    @id @default(cuid())
+  offlineOperationId String?
+  operationId        String?
+  entityType         String
+  entityId           String
+  field              String
+  offlineValue       String?
+  serverValue        String?
+  offlineChangedAt   DateTime?
+  serverChangedAt    DateTime?
+  serverChangedBy    String?
+  recommended        String?
+  status             String    @default("OPEN")
+  resolution         String?
+  resolvedBy         String?
+  resolvedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  offlineOperation   OfflineOperation? @relation(fields: [offlineOperationId], references: [id])
+
+  @@index([status])
+  @@index([operationId])
+}
+
+model OfflinePackageMetadata {
+  id               String    @id @default(cuid())
+  workOrderId      String
+  workOrderNumber  String?
+  technicianId     String
+  downloadedAt     DateTime  @default(now())
+  expiresAt        DateTime?
+  sizeBytes        Int?
+  readiness        String    @default("READY")
+  serverRevision   String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([technicianId, workOrderId])
+}
+
+model AttachmentUpload {
+  id            String    @id @default(cuid())
+  operationId   String?
+  workOrderId   String?
+  category      String?
+  fileName      String?
+  mimeType      String?
+  sizeBytes     Int?
+  storageRef    String?
+  uploaded      Boolean   @default(false)
+  uploadedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([workOrderId])
+  @@index([operationId])
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 40 — ENTERPRISE CUSTOMER / SITE / ASSET CRM
+// -----------------------------------------------------------------------------
+
+model CustomerContact {
+  id                          String   @id @default(cuid())
+  customerId                  String
+  name                        String
+  jobTitle                    String?
+  department                  String?
+  email                       String?
+  officePhone                 String?
+  mobilePhone                 String?
+  preferredContactMethod      String?
+  emergencyContact            Boolean  @default(false)
+  receiveServiceNotifications Boolean  @default(true)
+  receiveMaintenanceReports   Boolean  @default(false)
+  isPrimary                   Boolean  @default(false)
+  notes                       String?
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+  customer                    Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([email])
+  @@index([name])
+}
+
+model CustomerContract {
+  id                  String    @id @default(cuid())
+  customerId          String
+  contractNumber      String
+  startDate           DateTime?
+  endDate             DateTime?
+  renewalDate         DateTime?
+  slaResponseHours    Int?
+  slaResolutionHours  Int?
+  includedPMs         Int?
+  includedLaborHours  Int?
+  includedParts       Boolean   @default(false)
+  excludedServices    String?
+  billingType         String?
+  status              String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  customer            Customer  @relation(fields: [customerId], references: [id])
+
+  @@unique([contractNumber])
+  @@index([customerId])
+  @@index([endDate])
+  @@index([status])
+}
+
+model AssetWarranty {
+  id                 String    @id @default(cuid())
+  printerId          String
+  kind               String
+  status             String?
+  startDate          DateTime?
+  endDate            DateTime?
+  coveredComponents  String? // JSON array
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  printer            Printer   @relation(fields: [printerId], references: [id])
+
+  @@index([printerId])
+  @@index([endDate])
+  @@index([status])
+}
+
+model AssetLifecycleEvent {
+  id         String   @id @default(cuid())
+  printerId  String
+  type       String
+  occurredAt DateTime
+  actor      String?
+  summary    String?
+  details    String?
+  createdAt  DateTime @default(now())
+  printer    Printer  @relation(fields: [printerId], references: [id])
+
+  @@index([printerId, occurredAt])
+  @@index([type])
+}
+
+model AssetRelationship {
+  id             String   @id @default(cuid())
+  parentPrinterId String
+  childPrinterId  String?
+  childName       String
+  kind            String
+  serialNumber    String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  parentPrinter   Printer  @relation("AssetParent", fields: [parentPrinterId], references: [id])
+  childPrinter    Printer? @relation("AssetChild", fields: [childPrinterId], references: [id])
+
+  @@index([parentPrinterId])
+  @@index([childPrinterId])
+  @@index([kind])
+}
+
+model CustomerDocument {
+  id          String   @id @default(cuid())
+  customerId  String
+  siteId      String?
+  printerId   String?
+  category    String
+  title       String
+  fileName    String?
+  version     Int      @default(1)
+  uploadedAt  DateTime @default(now())
+  uploadedBy  String?
+  storageRef  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([siteId])
+  @@index([printerId])
+  @@index([category])
+}
+
+model CrmAuditEntry {
+  id            String   @id @default(cuid())
+  entityType    String
+  entityId      String
+  field         String
+  previousValue String?
+  newValue      String?
+  actor         String?
+  occurredAt    DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([occurredAt])
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 41 — SERVICE TICKET UPDATES / PARTS / LABOR / DISPATCH
+// -----------------------------------------------------------------------------
+
+model ServiceTicketUpdate {
+  id                String   @id @default(cuid())
+  ticketId          String
+  updateType        String
+  previousStatus    String?
+  newStatus         String?
+  message           String?
+  createdBy         String?
+  createdAt         DateTime @default(now())
+  visibleToCustomer Boolean  @default(false)
+  attachmentUrl     String?
+  ticket            ServiceTicket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId, createdAt])
+}
+
+model ServiceTicketPart {
+  id                    String   @id @default(cuid())
+  ticketId              String
+  partId                String?
+  partNumber            String?
+  description           String?
+  quantityRequested     Int      @default(0)
+  quantityUsed          Int      @default(0)
+  quantityReturned      Int      @default(0)
+  inventoryLocation     String?
+  addedBy               String?
+  addedAt               DateTime @default(now())
+  emergencyOrderRequired Boolean @default(false)
+  orderStatus           String?
+  ticket                ServiceTicket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@index([partNumber])
+}
+
+model ServiceTicketAttachment {
+  id                String   @id @default(cuid())
+  ticketId          String
+  attachmentType    String?
+  fileName          String?
+  fileUrl           String?
+  uploadedBy        String?
+  uploadedAt        DateTime @default(now())
+  caption           String?
+  visibleToCustomer Boolean  @default(false)
+  ticket            ServiceTicket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+}
+
+model ServiceTicketLabor {
+  id            String    @id @default(cuid())
+  ticketId      String
+  technicianId  String?
+  startTime     DateTime?
+  endTime       DateTime?
+  laborMinutes  Int       @default(0)
+  laborType     String?
+  notes         String?
+  billable      Boolean   @default(true)
+  ticket        ServiceTicket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@index([technicianId])
+}
+
+model DispatchAssignment {
+  id                 String    @id @default(cuid())
+  ticketId           String
+  technicianId       String?
+  assignedBy         String?
+  assignedAt         DateTime  @default(now())
+  acceptedAt         DateTime?
+  declinedAt         DateTime?
+  declineReason      String?
+  estimatedArrival   DateTime?
+  actualArrival      DateTime?
+  dispatchStatus     String?
+  reassignmentReason String?
+  ticket             ServiceTicket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@index([technicianId])
+  @@index([dispatchStatus])
+}
+
+model TicketNumberSequence {
+  id        String   @id @default(cuid())
+  year      Int      @unique
+  lastSeq   Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model ProblemCategoryConfig {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  description String?
+  enabled     Boolean  @default(true)
+  sortOrder   Int      @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([enabled, sortOrder])
+}
+
+model SlaRuleConfig {
+  id                 String   @id @default(cuid())
+  name               String
+  priority           String
+  responseMinutes    Int
+  assignmentMinutes  Int
+  arrivalMinutes     Int
+  resolutionMinutes  Int
+  escalationMinutes  Int
+  weekendCoverage    Boolean  @default(false)
+  enabled            Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([priority, enabled])
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 42 — SECURE CUSTOMER PORTAL
+// -----------------------------------------------------------------------------
+
+model CustomerMembership {
+  id                   String    @id @default(cuid())
+  clerkUserId          String
+  email                String?
+  displayName          String?
+  customerId           String
+  role                 String
+  status               String
+  invitedBy            String?
+  invitedAt            DateTime?
+  acceptedAt           DateTime?
+  disabledAt           DateTime?
+  lastPortalLogin      DateTime?
+  canApproveService    Boolean   @default(false)
+  canViewMeters        Boolean   @default(false)
+  canViewPm            Boolean   @default(true)
+  canDownloadReports   Boolean   @default(true)
+  canManageUsers       Boolean   @default(false)
+  jobTitle             String?
+  phone                String?
+  preferredContactMethod String?
+  timeZone             String?
+  defaultLocationId    String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  locationAccess       CustomerLocationAccess[]
+  printerAccess        CustomerPrinterAccess[]
+
+  @@index([clerkUserId, status])
+  @@index([customerId, status])
+  @@index([email])
+}
+
+model CustomerLocationAccess {
+  id           String   @id @default(cuid())
+  membershipId String
+  locationId   String
+  accessLevel  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  membership   CustomerMembership @relation(fields: [membershipId], references: [id])
+
+  @@unique([membershipId, locationId])
+  @@index([locationId])
+}
+
+model CustomerPrinterAccess {
+  id           String   @id @default(cuid())
+  membershipId String
+  printerId    String
+  accessLevel  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  membership   CustomerMembership @relation(fields: [membershipId], references: [id])
+
+  @@unique([membershipId, printerId])
+  @@index([printerId])
+}
+
+model PortalInvitation {
+  id                 String    @id @default(cuid())
+  email              String
+  displayName        String?
+  customerId         String
+  role               String
+  status             String
+  invitedBy          String?
+  invitedAt          DateTime  @default(now())
+  expiresAt          DateTime
+  acceptedAt         DateTime?
+  cancelledAt        DateTime?
+  locationIdsJson    String?
+  printerIdsJson     String?
+  canApproveService  Boolean   @default(false)
+  canViewMeters      Boolean   @default(false)
+  canViewPm          Boolean   @default(true)
+  canDownloadReports Boolean   @default(true)
+  canManageUsers     Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([email, status])
+  @@index([customerId, status])
+}
+
+model PortalAnnouncement {
+  id                      String    @id @default(cuid())
+  title                   String
+  message                 String
+  customerId              String
+  locationId              String?
+  priority                String?
+  startDate               DateTime?
+  endDate                 DateTime?
+  createdBy               String?
+  visible                 Boolean   @default(true)
+  acknowledgmentRequired  Boolean   @default(false)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([customerId, visible])
+  @@index([locationId])
+}
+
+model PortalDocument {
+  id                String    @id @default(cuid())
+  title             String
+  description       String?
+  category          String?
+  fileUrl           String?
+  customerId        String
+  locationId        String?
+  printerId         String?
+  visibleToCustomer Boolean   @default(true)
+  uploadedBy        String?
+  uploadedAt        DateTime  @default(now())
+  expirationDate    DateTime?
+  version           Int       @default(1)
+  active            Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([customerId, visibleToCustomer, active])
+  @@index([locationId])
+  @@index([printerId])
+}
+
+model PortalFeedback {
+  id                         String   @id @default(cuid())
+  ticketId                   String
+  membershipId               String
+  rating                     Int
+  resolutionSatisfaction     Int?
+  technicianProfessionalism  Int?
+  communicationQuality       Int?
+  responseTimeSatisfaction   Int?
+  comment                    String?
+  followUpRequested          Boolean  @default(false)
+  submittedAt                DateTime @default(now())
+
+  @@unique([ticketId, membershipId])
+  @@index([ticketId])
+}
+
+model PortalAuditEntry {
+  id            String   @id @default(cuid())
+  action        String
+  actor         String?
+  membershipId  String?
+  customerId    String?
+  entityType    String?
+  entityId      String?
+  previousValue String?
+  newValue      String?
+  sessionInfo   String?
+  occurredAt    DateTime @default(now())
+
+  @@index([customerId, occurredAt])
+  @@index([membershipId])
+  @@index([action])
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 43 — Enterprise Warehouse Management (extends Patch 38 inventory)
+// Runtime UI uses sessionStorage; these models are the persistence target.
+// -----------------------------------------------------------------------------
+
+model Warehouse {
+  id                    String   @id @default(cuid())
+  organizationId        String?
+  name                  String
+  code                  String
+  address               String?
+  manager               String?
+  phone                 String?
+  email                 String?
+  receivingDock         String?
+  shippingArea          String?
+  hours                 String?
+  status                String   @default("ACTIVE") // ACTIVE | INACTIVE | MAINTENANCE
+  region                String?
+  enterpriseLocationId  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  bins           WarehouseBinLocation[]
+  transfersFrom  WarehouseTransfer[] @relation("TransferFromWarehouse")
+  transfersTo    WarehouseTransfer[] @relation("TransferToWarehouse")
+  receiving      WarehouseReceivingSession[]
+  cycleCounts    WarehouseCycleCount[]
+  employees      WarehouseEmployee[]
+  restocks       TruckRestockRequest[]
+  alerts         WarehouseInventoryAlert[]
+
+  @@unique([code])
+  @@index([status])
+  @@index([enterpriseLocationId])
+}
+
+model WarehouseBinLocation {
+  id          String    @id @default(cuid())
+  warehouseId String
+  zone        String
+  aisle       String
+  rack        String
+  shelf       String
+  bin         String
+  drawer      String    @default("")
+  code        String
+  active      Boolean   @default(true)
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([warehouseId, code])
+  @@index([code])
+  @@index([zone, aisle])
+}
+
+model WarehouseTransfer {
+  id               String   @id @default(cuid())
+  transferNumber   String   @unique
+  kind             String
+  status           String
+  fromWarehouseId  String
+  toWarehouseId    String
+  fromLocationId   String?
+  toLocationId     String?
+  requestedBy      String?
+  approvedBy       String?
+  notes            String?
+  emergency        Boolean  @default(false)
+  requestedAt      DateTime @default(now())
+  approvedAt       DateTime?
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  receivedAt       DateTime?
+  cancelledAt      DateTime?
+  fromWarehouse    Warehouse @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id])
+  toWarehouse      Warehouse @relation("TransferToWarehouse", fields: [toWarehouseId], references: [id])
+  lines            WarehouseTransferLine[]
+
+  @@index([status])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+}
+
+model WarehouseTransferLine {
+  id                 String            @id @default(cuid())
+  transferId         String
+  partId             String?
+  partNumber         String
+  description        String?
+  quantityRequested  Int
+  quantityShipped    Int               @default(0)
+  quantityReceived   Int               @default(0)
+  binFromId          String?
+  binToId            String?
+  transfer           WarehouseTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
+  @@index([partNumber])
+}
+
+model WarehouseReceivingSession {
+  id                     String   @id @default(cuid())
+  sessionNumber          String   @unique
+  purchaseRequestId      String?
+  purchaseRequestNumber  String?
+  warehouseId            String
+  step                   String
+  status                 String
+  receiver               String?
+  labelsPrinted          Boolean  @default(false)
+  notes                  String?
+  startedAt              DateTime @default(now())
+  completedAt            DateTime?
+  warehouse              Warehouse @relation(fields: [warehouseId], references: [id])
+  lines                  WarehouseReceivingLine[]
+
+  @@index([warehouseId, status])
+}
+
+model WarehouseReceivingLine {
+  id             String                    @id @default(cuid())
+  sessionId      String
+  partId         String?
+  partNumber     String
+  description    String?
+  expectedQty    Int
+  receivedQty    Int                       @default(0)
+  inspectedOk    Boolean                   @default(false)
+  inspectNotes   String?
+  binLocationId  String?
+  locationCode   String?
+  session        WarehouseReceivingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model WarehouseCycleCount {
+  id              String   @id @default(cuid())
+  countNumber     String   @unique
+  warehouseId     String
+  type            String
+  status          String
+  categoryFilter  String?
+  binFilter       String?
+  createdBy       String?
+  approvedBy      String?
+  notes           String?
+  scheduledAt     DateTime @default(now())
+  completedAt     DateTime?
+  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
+  lines           WarehouseCycleCountLine[]
+
+  @@index([warehouseId, status])
+}
+
+model WarehouseCycleCountLine {
+  id             String              @id @default(cuid())
+  cycleCountId   String
+  partId         String?
+  partNumber     String
+  description    String?
+  binLocationId  String?
+  locationCode   String?
+  expectedQty    Int
+  actualQty      Int?
+  variance       Int?
+  reason         String?
+  cycleCount     WarehouseCycleCount @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
+
+  @@index([cycleCountId])
+}
+
+model TruckRestockRequest {
+  id                 String   @id @default(cuid())
+  requestNumber      String   @unique
+  truckLocationId    String
+  truckName          String?
+  technician         String?
+  sourceWarehouseId  String
+  status             String
+  createdBy          String?
+  notes              String?
+  createdAt          DateTime @default(now())
+  completedAt        DateTime?
+  sourceWarehouse    Warehouse @relation(fields: [sourceWarehouseId], references: [id])
+  lines              TruckRestockLine[]
+
+  @@index([truckLocationId])
+  @@index([status])
+}
+
+model TruckRestockLine {
+  id              String              @id @default(cuid())
+  requestId       String
+  partId          String?
+  partNumber      String
+  description     String?
+  currentQty      Int
+  recommendedQty  Int
+  missingQty      Int
+  critical        Boolean             @default(false)
+  fastMoving      Boolean             @default(false)
+  emergencyKit    Boolean             @default(false)
+  consumable      Boolean             @default(false)
+  request         TruckRestockRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+}
+
+model WarehouseInventoryAlert {
+  id            String    @id @default(cuid())
+  type          String
+  title         String
+  message       String
+  warehouseId   String?
+  partNumber    String?
+  referenceId   String?
+  priority      String    @default("NORMAL")
+  createdAt     DateTime  @default(now())
+  acknowledgedAt DateTime?
+  warehouse     Warehouse? @relation(fields: [warehouseId], references: [id])
+
+  @@index([warehouseId])
+  @@index([type, createdAt])
+}
+
+model WarehouseEmployee {
+  id          String    @id @default(cuid())
+  warehouseId String
+  name        String
+  role        String?
+  phone       String?
+  email       String?
+  active      Boolean   @default(true)
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@index([warehouseId])
+}
+
+model WarehouseAuditEntry {
+  id               String   @id @default(cuid())
+  timestamp        DateTime @default(now())
+  technician       String?
+  warehouseId      String?
+  inventoryItemId  String?
+  partNumber       String?
+  quantityBefore   Int?
+  quantityAfter    Int?
+  adjustment       Int?
+  reason           String
+  referenceNumber  String?
+  sourceModule     String?
+  ipAddress        String?
+  device           String?
+
+  @@index([warehouseId, timestamp])
+  @@index([partNumber])
+  @@index([referenceNumber])
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 44 — PM Intelligence (sessionStorage runtime; Prisma persistence target)
+// -----------------------------------------------------------------------------
+
+model PmMeterReading {
+  id                        String   @id @default(cuid())
+  printerId                 String
+  meterCount                Int
+  previousCount             Int?
+  countIncrease             Int?
+  recordedAt                DateTime
+  countTime                 String?
+  operatingHours            Float?
+  colorCount                Int?
+  blackCount                Int?
+  duplexCount               Int?
+  scanCount                 Int?
+  notes                     String?
+  source                    String
+  enteredBy                 String?
+  photoUrl                  String?
+  validationOverrideReason  String?
+  suspectedReset            Boolean  @default(false)
+  unusualIncrease           Boolean  @default(false)
+  createdAt                 DateTime @default(now())
+
+  @@index([printerId, recordedAt])
+}
+
+model PmIntervalRule {
+  id                     String   @id @default(cuid())
+  name                   String
+  printerModel           String
+  maintenanceType        String
+  startingMeter          Int      @default(0)
+  intervalCount          Int
+  warningThreshold       Int
+  criticalThreshold      Int
+  graceThreshold         Int
+  dateBasedIntervalDays  Int?
+  requiredPartsKitId     String?
+  estimatedLaborHours    Float    @default(2)
+  instructions           String?
+  active                 Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([printerModel])
+}
+
+model PmCleaningCompletion {
+  id                 String    @id @default(cuid())
+  printerId          String
+  cleaningType       String
+  completedAt        DateTime
+  completedMeter     Int
+  technician         String?
+  timeSpentMinutes   Int?
+  conditionBefore    String?
+  conditionAfter     String?
+  suppliesUsedJson   String?
+  partsUsedJson      String?
+  photosJson         String?
+  notes              String?
+  customerSignature  String?
+  followUpRequired   Boolean   @default(false)
+  nextCleaningCount  Int?
+  nextCleaningDate   DateTime?
+
+  @@index([printerId])
+}
+
+model PmIntelligenceAudit {
+  id             String   @id @default(cuid())
+  timestamp      DateTime @default(now())
+  user           String?
+  action         String
+  printerId      String?
+  customerName   String?
+  previousValue  String?
+  newValue       String?
+  reason         String?
+  sourceModule   String?
+  device         String?
+  ipAddress      String?
+  workOrderId    String?
+  pmEventId      String?
+
+  @@index([printerId, timestamp])
+  @@index([action])
+}
