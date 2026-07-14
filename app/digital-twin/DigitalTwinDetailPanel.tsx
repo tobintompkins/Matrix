@@ -24,6 +24,7 @@ import {
   getServiceCallsForMachine,
 } from "@/lib/service-calls";
 import MachineMaintenancePanel from "@/app/components/maintenance/MachineMaintenancePanel";
+import MatrixAssistPanel from "@/app/components/matrix-assist/MatrixAssistPanel";
 
 type TabId =
   | "overview"
@@ -161,6 +162,16 @@ export default function DigitalTwinDetailPanel({ machine }: Props) {
           </p>
         </div>
       </div>
+
+      <MatrixAssistPanel
+        machineId={m.identity.machineId}
+        defaultSymptom={
+          m.alerts.find((a) => !a.resolved)?.title ??
+          m.service.recentErrorCodes[0] ??
+          ""
+        }
+        compact
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MatrixStatCard

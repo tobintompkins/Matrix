@@ -13,7 +13,7 @@ export default function ScannerPage() {
           breadcrumbs={["Matrix", "Service Platform", "Scanner"]}
           actions={
             <MatrixButton href="/dashboard" variant="secondary" size="md">
-              Back to Dashboard
+              Back to Service Hub
             </MatrixButton>
           }
         />

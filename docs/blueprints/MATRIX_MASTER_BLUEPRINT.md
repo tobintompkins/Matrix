@@ -129,14 +129,15 @@ Permissions use dot-notation keys stored on `Role.permissions` (JSON array). `*`
 
 | Module | Route (prototype) | Enterprise API prefix | Description |
 |--------|-------------------|----------------------|-------------|
-| Dashboard | `/dashboard` | `/api/dashboard` | KPIs, alerts, workload |
+| Service Hub (Dashboard) | `/dashboard` (alias `/service-hub`) | `/api/dashboard` | KPIs, alerts, workload — presented to users as **Service Hub** |
 | Customers | `/customers`, `/add-customer` | `/api/customers` | Accounts, locations, contacts |
 | Fleet | `/fleet`, `/printers`, `/register-printer` | `/api/fleet` | Machines, models, telemetry |
 | Tickets / Work Orders | `/tickets`, `/new-ticket` | `/api/workorders` | Service lifecycle |
 | Inventory | `/inventory` | `/api/inventory` | Stock, warehouses, transactions |
 | Parts Ordering | `/order-parts` | `/api/orders` | POs, shipments, diagram orders |
 | PM | `/start-pm`, `/request-pm-kit` | `/api/pm` | Schedules, kits, history |
-| AI Technician | `/ai-technician` | `/api/ai` | Conversations, recommendations |
+| Matrix Assist | `/ai-technician` | `/api/matrix-assist` | Advisory diagnostics, history summary, note drafts (Patch 48) |
+| Administration Center | `/admin` | `/api/admin` | Users, roles, config, features, audit, security (Patch 49A) |
 | Knowledge Base | `/knowledge-base` | `/api/manuals`, `/api/errorcodes` | Articles, manuals, error library |
 | Settings | — | `/api/settings` | Org and user preferences |
 | Auth | — | `/api/auth` | Login, sessions, tokens |
@@ -147,7 +148,7 @@ Permissions use dot-notation keys stored on `Role.permissions` (JSON array). `*`
 
 ## AI Features
 
-- **AI Technician** — Context-aware chat tied to printer, ticket, and error code
+- **Matrix Assist** — Context-aware advisory diagnostics tied to service call / machine (human approval required)
 - **Structured troubleshooting sessions** — `AITroubleshootingSession` links conversation → machine → work order
 - **Recommendations** — Model-specific suggested checks with confidence scores
 - **Knowledge grounding** — Error codes, manuals, service bulletins, and KB articles as retrieval context
@@ -318,13 +319,13 @@ Companion GL9730 series support parallel to GD9630:
 
 ---
 
-## Dashboards
+## Service Hub (Dashboards)
 
-- Executive: fleet health, SLA, revenue indicators
-- Dispatcher: technician map, open queue, parts blockers
-- Technician: my assignments, parts on truck, AI shortcuts
-- Inventory: low stock, inbound shipments
-- Widget-based composition with role-based layouts (future)
+The Matrix landing experience is presented to users as the **Service Hub**.
+
+- Internal route remains `/dashboard` for bookmarks, middleware, and Clerk redirects.
+- Optional friendly alias: `/service-hub` → redirects to `/dashboard` (no duplicate page logic).
+- Executive / dispatcher / technician / inventory widgets continue to reuse existing modules (PM, service calls, inventory) — Patch 47 is naming and organization polish, not a second dashboard system.
 
 ---
 

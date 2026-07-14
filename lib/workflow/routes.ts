@@ -10,7 +10,7 @@ export const MODULE_LABELS: Record<WorkflowModule, string> = {
   "parts-order-builder": "Parts Order Builder",
   "order-parts": "Order Parts",
   "knowledge-base": "Knowledge Base",
-  "ai-technician": "AI Technician",
+  "ai-technician": "Matrix Assist",
   fleet: "Fleet",
 };
 

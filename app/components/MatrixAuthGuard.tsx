@@ -1,9 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useUser } from "@clerk/nextjs";
 import {
   canAccessRoute,
   hasMatrixPermission,
+  resolveMatrixRole,
 } from "@/lib/auth/permissions";
 import {
   DEV_FALLBACK_ROLE,
@@ -12,37 +14,35 @@ import {
 } from "@/lib/auth/types";
 import { MatrixButton, MatrixCard } from "@/app/components/ui";
 
-const VALID_ROLES: MatrixRole[] = [
-  "SUPER_ADMIN",
-  "ADMIN",
-  "SERVICE_MANAGER",
-  "FIELD_TECHNICIAN",
-  "WAREHOUSE_MANAGER",
-  "TRAINER",
-  "CUSTOMER_VIEWER",
-];
-
 type MatrixAuthGuardProps = {
   children: ReactNode;
   requiredPermissions?: MatrixPermission[];
-  /** Optional pathname for route-based checks */
   pathname?: string;
-  /**
-   * Role override. Until Clerk publicMetadata.matrixRole is connected,
-   * defaults to SUPER_ADMIN so development is not blocked.
-   */
+  /** Optional override; defaults to Clerk publicMetadata.matrixRole */
   role?: MatrixRole;
+  accessDeniedMessage?: string;
 };
 
 export default function MatrixAuthGuard({
   children,
   requiredPermissions = [],
   pathname,
-  role = DEV_FALLBACK_ROLE,
+  role,
+  accessDeniedMessage,
 }: MatrixAuthGuardProps) {
-  const matrixRole: MatrixRole = VALID_ROLES.includes(role)
-    ? role
-    : DEV_FALLBACK_ROLE;
+  const { user, isLoaded } = useUser();
+  const resolved = resolveMatrixRole(
+    user?.publicMetadata as Record<string, unknown> | undefined,
+  );
+  const matrixRole: MatrixRole = role ?? resolved.role ?? DEV_FALLBACK_ROLE;
+
+  if (!isLoaded) {
+    return (
+      <p className="text-sm text-slate-400" aria-live="polite">
+        Checking access…
+      </p>
+    );
+  }
 
   const missing = requiredPermissions.filter(
     (permission) => !hasMatrixPermission(matrixRole, permission),
@@ -55,22 +55,19 @@ export default function MatrixAuthGuard({
     return (
       <MatrixCard
         title="Access Restricted"
-        subtitle="You do not have permission to view this area of Matrix."
+        subtitle={
+          accessDeniedMessage ??
+          "You do not have permission to access the Administration Center."
+        }
       >
-        <p className="text-sm text-slate-400">
-          Required permission
-          {missing.length !== 1 ? "s" : ""}:{" "}
-          <span className="font-mono text-amber-300">
-            {missing.length > 0 ? missing.join(", ") : "route access"}
-          </span>
-        </p>
         <p className="mt-3 text-sm text-slate-500">
-          Current role (fallback until Clerk metadata is connected):{" "}
+          Signed-in role:{" "}
           <span className="font-semibold text-cyan-300">{matrixRole}</span>
+          {resolved.usingDevFallbackRole ? " (development fallback)" : ""}
         </p>
         <div className="mt-6">
           <MatrixButton href="/dashboard" variant="primary" size="md">
-            Back to Dashboard
+            Back to Service Hub
           </MatrixButton>
         </div>
       </MatrixCard>

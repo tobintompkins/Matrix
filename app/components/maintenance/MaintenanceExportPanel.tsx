@@ -60,7 +60,7 @@ export default function MaintenanceExportPanel({
     >
       {!canExport ? (
         <p className="text-sm text-amber-300">
-          You can view the dashboard, but exporting is limited to managers and
+          You can view maintenance data, but exporting is limited to managers and
           administrators.
         </p>
       ) : (

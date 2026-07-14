@@ -61,6 +61,40 @@ export {
   validateWholeNonNegativeCount,
 } from "./calculations";
 
+export type {
+  CalculatePmCleaningStatusInput,
+  PmCleaningStatus,
+  PmCleaningStatusResult,
+  PmStatusDisplayLabel,
+} from "./pm-status";
+
+export {
+  calculateCountsRemaining,
+  calculateNextPmDueCount,
+  calculatePmCleaningStatus,
+  mapLegacyMaintenanceStatus,
+  PM_STATUS_DISPLAY_LABELS,
+  resolveDueSoonThreshold,
+  toLegacyMaintenanceStatus,
+  toPmStatusDisplayLabel,
+} from "./pm-status";
+
+export type {
+  CompletePmInput,
+  ListPmHistoryFilters,
+  PmDashboardFilters,
+  PmDashboardRow,
+  PmDashboardSummary,
+  RecordPmMeterReadingInput,
+  SetMachinePmIntervalInput,
+} from "./pm-prisma-repository";
+
+/**
+ * Prisma PM repository runtime: `@/lib/maintenance/server` or
+ * `@/lib/maintenance/pm-prisma-repository` (API routes / RSC only).
+ * Not re-exported here so client `/maintenance` imports stay free of Prisma.
+ */
+
 export {
   DEFAULT_CLEANING_INTERVAL,
   DEFAULT_DTF_PM_INTERVAL,

@@ -52,7 +52,7 @@ export default function ContextPanel({ className = "" }: ContextPanelProps) {
     },
     {
       id: "ai-technician",
-      label: "Launch AI Technician",
+      label: "Launch Matrix Assist",
       href: buildWorkflowUrl("/ai-technician", ctx),
       variant: "secondary" as const,
     },

@@ -135,6 +135,8 @@ export function computeServiceCallMetrics(
 
   for (const call of calls) {
     if (call.isDraft) continue;
+    if (call.recordState === "DELETED" || call.deletedAt) continue;
+    if (call.recordState === "ARCHIVED" || call.archivedAt) continue;
 
     if (isOpenServiceCallStatus(call.status)) {
       totalOpen += 1;
@@ -209,6 +211,8 @@ export function filterServiceCalls(
   filters: ServiceCallFilterState,
 ): ServiceCall[] {
   return calls.filter((call) => {
+    // Soft-deleted calls stay out of normal operational lists.
+    if (call.recordState === "DELETED" || call.deletedAt) return false;
     if (call.isDraft && filters.status === "ALL") {
       // hide drafts from main dashboard unless searching by id
       if (!filters.search.trim()) return false;

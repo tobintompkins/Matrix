@@ -1,4 +1,9 @@
 import { getDefaultIntervalForModel } from "./intervals";
+import {
+  calculateNextPmDueCount,
+  calculatePmCleaningStatus,
+  toLegacyMaintenanceStatus,
+} from "./pm-status";
 import type {
   MaintenanceIntervalConfig,
   MaintenanceKind,
@@ -19,23 +24,15 @@ export function calculateNextDueCount(
   lastCompletedCopyCount: number | null | undefined,
   interval: number,
 ): number | null {
-  if (
-    lastCompletedCopyCount === null ||
-    lastCompletedCopyCount === undefined ||
-    !Number.isFinite(lastCompletedCopyCount)
-  ) {
-    return null;
-  }
-  return Math.floor(lastCompletedCopyCount) + interval;
+  return calculateNextPmDueCount(lastCompletedCopyCount, interval);
 }
 
 /**
- * Status rules:
- * UNKNOWN — missing current or due count
- * OVERDUE — current > due
- * DUE — current === due
- * DUE_SOON — remaining <= warningThreshold
- * CURRENT — remaining > warningThreshold
+ * Legacy status API — delegates to Patch 45 `calculatePmCleaningStatus`
+ * (one calculation path). Maps GOOD↔CURRENT and NOT_CONFIGURED↔UNKNOWN.
+ *
+ * Callers pass precomputed nextDueCount + warningThreshold; internally we
+ * treat nextDue as lastPm=0 + interval=nextDue so status bands match.
  */
 export function calculateMaintenanceStatus(
   currentCopyCount: number | null | undefined,
@@ -43,11 +40,8 @@ export function calculateMaintenanceStatus(
   warningThreshold: number,
 ): StatusCalculation {
   if (
-    currentCopyCount === null ||
-    currentCopyCount === undefined ||
     nextDueCount === null ||
     nextDueCount === undefined ||
-    !Number.isFinite(currentCopyCount) ||
     !Number.isFinite(nextDueCount)
   ) {
     return {
@@ -57,18 +51,31 @@ export function calculateMaintenanceStatus(
     };
   }
 
-  const current = Math.floor(currentCopyCount);
   const due = Math.floor(nextDueCount);
+  const result = calculatePmCleaningStatus({
+    currentCount: currentCopyCount,
+    lastPmCount: 0,
+    pmInterval: due > 0 ? due : null,
+    dueSoonThreshold: warningThreshold,
+  });
 
-  if (current > due) {
-    return {
-      status: "OVERDUE",
-      copiesRemaining: 0,
-      copiesOverdue: current - due,
-    };
-  }
-
-  if (current === due) {
+  // When due is 0, pmInterval null → NOT_CONFIGURED; still compare for DUE/OVERDUE.
+  if (due === 0 && currentCopyCount !== null && currentCopyCount !== undefined) {
+    const current = Math.floor(currentCopyCount);
+    if (!Number.isFinite(current) || current < 0) {
+      return {
+        status: "UNKNOWN",
+        copiesRemaining: null,
+        copiesOverdue: null,
+      };
+    }
+    if (current > 0) {
+      return {
+        status: "OVERDUE",
+        copiesRemaining: 0,
+        copiesOverdue: current,
+      };
+    }
     return {
       status: "DUE",
       copiesRemaining: 0,
@@ -76,19 +83,10 @@ export function calculateMaintenanceStatus(
     };
   }
 
-  const remaining = due - current;
-  if (remaining <= warningThreshold) {
-    return {
-      status: "DUE_SOON",
-      copiesRemaining: remaining,
-      copiesOverdue: 0,
-    };
-  }
-
   return {
-    status: "CURRENT",
-    copiesRemaining: remaining,
-    copiesOverdue: 0,
+    status: toLegacyMaintenanceStatus(result.status),
+    copiesRemaining: result.countsRemaining,
+    copiesOverdue: result.countsOverdue,
   };
 }
 

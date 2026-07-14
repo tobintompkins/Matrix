@@ -40,9 +40,10 @@ export default function MeterCountsPage() {
   function submitCount() {
     setError("");
     setNotice("");
+    const meterCount = Number(count);
     const result = enterMeterCount({
       printerId,
-      meterCount: Number(count),
+      meterCount,
       enteredBy: "Field Technician",
       notes: "",
       source: "Technician Visit",
@@ -52,6 +53,18 @@ export default function MeterCountsPage() {
       setError(result.error);
       return;
     }
+    // Patch 45 — dual-write to Prisma PM state (does not auto-complete PM).
+    void import("@/lib/maintenance/pm-api-client").then(({ postPmMeter, newIdempotencyKey }) =>
+      postPmMeter({
+        machineId: printerId,
+        meterCount,
+        enteredBy: "Field Technician",
+        lowerCountReason: override || undefined,
+        idempotencyKey: newIdempotencyKey("meter-ui"),
+      }).catch(() => {
+        /* non-blocking — classic meter save already succeeded */
+      }),
+    );
     setNotice(
       `Saved ${result.reading.meterCount.toLocaleString()}${
         result.warnings.length ? ` · ${result.warnings.join(" ")}` : ""

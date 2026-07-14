@@ -200,7 +200,7 @@ export default function ScannerPanel() {
               size="lg"
               className="w-full sm:w-auto min-h-12"
             >
-              Back to Dashboard
+              Back to Service Hub
             </MatrixButton>
           </div>
 
@@ -472,7 +472,7 @@ export default function ScannerPanel() {
               Clear Lookup
             </MatrixButton>
             <MatrixButton href="/dashboard" variant="secondary" size="md">
-              Back to Dashboard
+              Back to Service Hub
             </MatrixButton>
           </div>
         </MatrixCard>

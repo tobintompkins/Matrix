@@ -47,7 +47,7 @@ export default function TechnicianDashboardPanel({ data }: Props) {
   return (
     <div className="space-y-6">
       <MatrixCard
-        title="Technician Dashboard"
+        title="Technician PM"
         subtitle={`${data.technician} — assigned work and completion metrics`}
       >
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

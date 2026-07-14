@@ -59,7 +59,28 @@ function commit(next: ServiceCall[]): ServiceCall[] {
   return next;
 }
 
-export function listServiceCalls(): ServiceCall[] {
+export type ListServiceCallsOptions = {
+  /** Include soft-deleted calls (admin / deleted-records only). */
+  includeDeleted?: boolean;
+  /** Include archived calls (default true for history; false for active workflows). */
+  includeArchived?: boolean;
+};
+
+export function listServiceCalls(
+  options: ListServiceCallsOptions = {},
+): ServiceCall[] {
+  const { includeDeleted = false, includeArchived = true } = options;
+  return cloneCalls(ensureStore()).filter((call) => {
+    const state = call.recordState ?? "ACTIVE";
+    if (!includeDeleted && (state === "DELETED" || call.deletedAt)) return false;
+    if (!includeArchived && (state === "ARCHIVED" || call.archivedAt))
+      return false;
+    return true;
+  });
+}
+
+/** All calls including deleted — admin use only. */
+export function listAllServiceCallsRaw(): ServiceCall[] {
   return cloneCalls(ensureStore());
 }
 

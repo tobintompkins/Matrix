@@ -103,7 +103,7 @@ export default function JobWizardForm() {
           href="/dashboard"
           className="text-sm text-cyan-400 hover:text-cyan-300"
         >
-          ← Back to Dashboard
+          ← Back to Service Hub
         </Link>
       </div>
 

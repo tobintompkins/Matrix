@@ -124,8 +124,20 @@ function pushAudit(
   return { ...store, audit: [row, ...store.audit] };
 }
 
-export function listCustomers(page = 1, pageSize = 25) {
-  return paginate(readStore().customers, page, pageSize);
+export function listCustomers(
+  page = 1,
+  pageSize = 25,
+  options?: { includeDeleted?: boolean; includeArchived?: boolean },
+) {
+  const includeDeleted = options?.includeDeleted ?? false;
+  const includeArchived = options?.includeArchived ?? true;
+  const customers = readStore().customers.filter((c) => {
+    const state = c.recordState ?? "ACTIVE";
+    if (!includeDeleted && (state === "DELETED" || c.deletedAt)) return false;
+    if (!includeArchived && (state === "ARCHIVED" || c.archivedAt)) return false;
+    return true;
+  });
+  return paginate(customers, page, pageSize);
 }
 
 export function getCustomer(customerId: string): CrmCustomer | null {

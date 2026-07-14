@@ -11,7 +11,7 @@ export default function ServiceCallsPage() {
         <MatrixAuthGuard requiredPermissions={["VIEW_SERVICE_CALLS"]}>
           <MatrixPageHeader
             title="Service Calls"
-            subtitle="Work-order dashboard for create, assign, track, and close printer service calls."
+            subtitle="Create, assign, track, and close printer service calls."
             breadcrumbs={["Matrix", "Service Platform", "Service Calls"]}
             actions={
               <div className="flex flex-wrap gap-2">

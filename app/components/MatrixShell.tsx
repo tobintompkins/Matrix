@@ -32,6 +32,7 @@ import {
   IconParts,
   IconPortal,
   IconScanner,
+  IconShield,
   IconTickets,
   IconTwin,
   IconWorkOrders,
@@ -54,16 +55,30 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Overview",
     items: [
-      { label: "Dashboard", href: "/dashboard", icon: IconDashboard },
+      { label: "Service Hub", href: "/dashboard", icon: IconDashboard },
       { label: "Notifications", href: "/notifications", icon: IconBell },
     ],
   },
   {
-    label: "Fleet & Assets",
+    label: "Service Ops",
     items: [
+      { label: "Service Calls", href: "/service-calls", icon: IconCalls },
+      { label: "Dispatch", href: "/dispatch", icon: IconDispatch },
+      { label: "Work Orders", href: "/work-orders", icon: IconWorkOrders },
+      { label: "Field", href: "/field", icon: IconField },
+      { label: "Service Tickets", href: "/tickets", icon: IconTickets },
+    ],
+  },
+  {
+    label: "Fleet & Maintenance",
+    items: [
+      {
+        label: "Preventive Maintenance",
+        href: "/maintenance",
+        icon: IconMaintenance,
+      },
       { label: "Fleet", href: "/fleet", icon: IconFleet },
       { label: "Digital Twin", href: "/digital-twin", icon: IconTwin },
-      { label: "Maintenance", href: "/maintenance", icon: IconMaintenance },
     ],
   },
   {
@@ -75,16 +90,6 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/portal/dashboard",
         icon: IconPortal,
       },
-    ],
-  },
-  {
-    label: "Service Ops",
-    items: [
-      { label: "Service Calls", href: "/service-calls", icon: IconCalls },
-      { label: "Dispatch", href: "/dispatch", icon: IconDispatch },
-      { label: "Work Orders", href: "/work-orders", icon: IconWorkOrders },
-      { label: "Field", href: "/field", icon: IconField },
-      { label: "Service Tickets", href: "/tickets", icon: IconTickets },
     ],
   },
   {
@@ -114,7 +119,13 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Knowledge",
     items: [
       { label: "Knowledge Base", href: "/knowledge-base", icon: IconKnowledge },
-      { label: "AI Technician", href: "/ai-technician", icon: IconAi },
+      { label: "Matrix Assist", href: "/ai-technician", icon: IconAi },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { label: "Administration", href: "/admin", icon: IconShield },
     ],
   },
 ];

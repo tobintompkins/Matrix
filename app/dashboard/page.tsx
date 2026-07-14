@@ -1,10 +1,13 @@
+"use client";
+
+import { useMemo } from "react";
 import ContextPanel from "../components/ContextPanel";
 import MatrixShell from "../components/MatrixShell";
 import FleetCopyCountsCard from "../components/maintenance/FleetCopyCountsCard";
+import PmDashboardSummaryCard from "../components/maintenance/PmDashboardSummaryCard";
 import {
   MatrixButton,
   MatrixInfoPanel,
-  MatrixPageHeader,
   MatrixSearchBar,
   MatrixSection,
 } from "../components/ui";
@@ -12,102 +15,88 @@ import DashboardActivityTable, {
   type ActivityRow,
 } from "./DashboardActivityTable";
 import DashboardOpsPanel from "./DashboardOpsPanel";
+import ServiceHubWelcome from "./ServiceHubWelcome";
+import { listServiceCalls } from "@/lib/service-calls";
 
-const recentActivity: ActivityRow[] = [
-  {
-    date: "2026-07-05",
-    customer: "SFX / MPX",
-    printer: "MX-GD-002 (GD9630)",
-    issue: "GD9630 jamming from Tray 2",
-    status: "Open",
-  },
-  {
-    date: "2026-07-04",
-    customer: "SFX / MPX",
-    printer: "MX-VA-002 (Valezus)",
-    issue: "Valezus black marks on sheet edge",
-    status: "In Progress",
-  },
-  {
-    date: "2026-07-03",
-    customer: "SFX / MPX",
-    printer: "MX-GL-001 (GL9730)",
-    issue: "GL9730 registration alignment issue",
-    status: "Open",
-  },
-  {
-    date: "2026-07-02",
-    customer: "SFX / MPX",
-    printer: "MX-GD-004 (GD9630)",
-    issue: "Intermittent paper feed error on high-volume runs",
-    status: "In Progress",
-  },
-  {
-    date: "2026-06-30",
-    customer: "SFX / MPX",
-    printer: "MX-VA-003 (Valezus)",
-    issue: "Drum unit replacement — waiting on parts",
-    status: "Waiting Parts",
-  },
-  {
-    date: "2026-06-27",
-    customer: "SFX / MPX",
-    printer: "MX-GD-006 (GD9630)",
-    issue: "Master roll tension sensor fault cleared",
-    status: "Completed",
-  },
-];
+function buildRecentActivity(): ActivityRow[] {
+  const openish = new Set([
+    "NEW",
+    "UNASSIGNED",
+    "ASSIGNED",
+    "ACCEPTED",
+    "EN_ROUTE",
+    "ON_SITE",
+    "DIAGNOSING",
+    "WAITING_FOR_PARTS",
+    "WAITING_FOR_CUSTOMER",
+    "ESCALATED",
+    "RESOLVED",
+    "CLOSED",
+  ]);
 
-const priorityAlerts = [
-  {
-    severity: "high",
-    message: "GD9630 Tray 2 jam trend detected",
-  },
-  {
-    severity: "medium",
-    message: "Valezus black mark issue needs inspection",
-  },
-  {
-    severity: "low",
-    message: "4 parts below reorder level",
-  },
-];
+  return listServiceCalls()
+    .filter((c) => openish.has(c.status) && !c.isDraft)
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt || b.createdAt).getTime() -
+        new Date(a.updatedAt || a.createdAt).getTime(),
+    )
+    .slice(0, 10)
+    .map((c) => ({
+      date: (c.updatedAt || c.createdAt).slice(0, 10),
+      customer: c.machine.customerName,
+      printer: `${c.machine.assetTag || c.machine.serialNumber} (${c.machine.printerModel})`,
+      issue: c.problem.issueTitle,
+      status:
+        c.status === "RESOLVED" || c.status === "CLOSED"
+          ? "Completed"
+          : c.status === "WAITING_FOR_PARTS"
+            ? "Waiting Parts"
+            : c.status === "ON_SITE" || c.status === "DIAGNOSING"
+              ? "In Progress"
+              : "Open",
+    }));
+}
 
-const fleetMix = [
-  { model: "GD9630", count: 7, color: "bg-cyan-500/80" },
-  { model: "GL9730", count: 1, color: "bg-slate-400" },
-  { model: "Valezus", count: 4, color: "bg-emerald-500/70" },
-];
-
-const alertStyles: Record<string, string> = {
-  high: "border-rose-500/30 bg-rose-500/5 text-rose-200/90",
-  medium: "border-amber-500/30 bg-amber-500/5 text-amber-200/90",
-  low: "border-slate-700 bg-slate-900/60 text-slate-300",
-};
-
+/**
+ * Patch 47 — Service Hub (existing /dashboard page).
+ * Single H1 comes from MatrixShell ("Service Hub"); page content does not repeat it.
+ */
 export default function DashboardPage() {
-  const totalFleet = fleetMix.reduce((sum, item) => sum + item.count, 0);
+  const recentActivity = useMemo(() => buildRecentActivity(), []);
 
   return (
-    <MatrixShell title="Dashboard" activePath="/dashboard">
-      <MatrixPageHeader
-        title="Operations Overview"
-        subtitle="Field service snapshot for the SFX / MPX fleet."
-        breadcrumbs={["Matrix", "Service Platform", "Dashboard"]}
-        actions={
-          <>
-            <MatrixButton href="/service-calls/new" variant="primary" size="md">
-              New Service Call
-            </MatrixButton>
-            <MatrixButton href="/order-parts" variant="secondary" size="md">
-              Order Parts
-            </MatrixButton>
-          </>
-        }
-      />
+    <MatrixShell title="Service Hub" activePath="/dashboard">
+      <nav
+        aria-label="Breadcrumb"
+        className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500"
+      >
+        <span>Matrix</span>
+        <span aria-hidden>/</span>
+        <span>Service Platform</span>
+        <span aria-hidden>/</span>
+        <span className="text-cyan-400">Service Hub</span>
+      </nav>
+
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <ServiceHubWelcome />
+        <div className="flex flex-wrap gap-2">
+          <MatrixButton href="/service-calls/new" variant="primary" size="md">
+            Create Service Call
+          </MatrixButton>
+          <MatrixButton href="/order-parts" variant="secondary" size="md">
+            Order Parts
+          </MatrixButton>
+        </div>
+      </div>
 
       <div className="mb-6">
         <DashboardOpsPanel />
+      </div>
+
+      <div className="mb-6">
+        <PmDashboardSummaryCard />
       </div>
 
       <ContextPanel className="mb-6" />
@@ -115,7 +104,8 @@ export default function DashboardPage() {
       <div className="mb-6">
         <MatrixSearchBar
           id="global-search"
-          placeholder="Search printers, customers, tickets, serial numbers..."
+          placeholder="Search printers, customers, tickets, serial numbers…"
+          aria-label="Search Service Hub"
         />
       </div>
 
@@ -125,59 +115,42 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <MatrixSection
-          title="Recent Service Activity"
-          subtitle="Latest field service events across the SFX / MPX fleet."
+          title="Recent Activity"
+          subtitle="Newest service-call updates first (limited to 10)."
           className="lg:col-span-2"
         >
-          <DashboardActivityTable data={recentActivity} />
+          {recentActivity.length === 0 ? (
+            <p className="text-sm text-slate-500">No open service calls.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <DashboardActivityTable data={recentActivity} />
+            </div>
+          )}
         </MatrixSection>
 
-        <div className="space-y-6">
-          <MatrixInfoPanel
-            title="Priority Alerts"
-            subtitle="Items requiring attention across fleet and inventory."
-          >
-            <ul className="space-y-2.5">
-              {priorityAlerts.map((alert) => (
-                <li
-                  key={alert.message}
-                  className={`rounded-lg border px-3.5 py-2.5 text-sm ${alertStyles[alert.severity]}`}
-                >
-                  <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-                  {alert.message}
-                </li>
-              ))}
-            </ul>
-          </MatrixInfoPanel>
-
-          <MatrixInfoPanel
-            title="Fleet Mix"
-            subtitle="Active printer distribution by model series."
-            footer={
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Total Fleet</span>
-                <span className="font-semibold text-cyan-400">{totalFleet}</span>
-              </div>
-            }
-          >
-            <div className="space-y-3.5">
-              {fleetMix.map((item) => (
-                <div key={item.model}>
-                  <div className="mb-1.5 flex items-center justify-between text-sm">
-                    <span className="font-medium text-white">{item.model}</span>
-                    <span className="text-slate-400">{item.count}</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
-                    <div
-                      className={`h-full rounded-full ${item.color}`}
-                      style={{ width: `${(item.count / totalFleet) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </MatrixInfoPanel>
-        </div>
+        <MatrixInfoPanel
+          title="Navigation tips"
+          subtitle="Use the sidebar to open existing modules. This page reuses live data — no duplicate landing page."
+        >
+          <ul className="space-y-2 text-sm text-slate-300">
+            <li>
+              <span className="text-slate-500">Service calls → </span>
+              create, assign, and close field work
+            </li>
+            <li>
+              <span className="text-slate-500">Preventive Maintenance → </span>
+              meters, checklists, and PM history
+            </li>
+            <li>
+              <span className="text-slate-500">Customers / Fleet → </span>
+              accounts and machines
+            </li>
+            <li>
+              <span className="text-slate-500">Inventory → </span>
+              parts, stock, and purchase requests
+            </li>
+          </ul>
+        </MatrixInfoPanel>
       </div>
     </MatrixShell>
   );

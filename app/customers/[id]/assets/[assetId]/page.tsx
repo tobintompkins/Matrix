@@ -100,7 +100,7 @@ export default function AssetDetailPage({
       <MatrixShell title="Asset" activePath="/customers">
         <MatrixEmptyState
           title="Asset not found"
-          description="Return to the customer dashboard."
+          description="Return to the customer record."
           actionLabel="Back"
           onAction={() => {
             window.location.href = `/customers/${id}`;
@@ -304,7 +304,7 @@ export default function AssetDetailPage({
                 occurredAt: new Date().toISOString(),
                 actor: "Matrix User",
                 summary: `${eventType.replaceAll("_", " ")} recorded`,
-                details: "Logged from asset dashboard",
+                details: "Logged from asset page",
               });
               setNotice(`Logged ${eventType}`);
               setTick((t) => t + 1);

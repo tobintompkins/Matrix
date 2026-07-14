@@ -25,6 +25,7 @@ import {
   listDocuments,
   listSites,
 } from "@/lib/crm";
+import CustomerPmSummaryPanel from "@/app/components/maintenance/CustomerPmSummaryPanel";
 
 function badge(status: string) {
   switch (status) {
@@ -156,6 +157,8 @@ export default function CustomerDetailPage({
           <MatrixStatCard label="Warranty alerts" value={dashboard.warrantyExpiring} />
         </div>
       ) : null}
+
+      <CustomerPmSummaryPanel customerName={customer.name} />
 
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
         <MatrixCard title="Account" subtitle="Addresses, hours, and hierarchy.">

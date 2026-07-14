@@ -206,6 +206,8 @@ export type ServiceCallProblem = {
   machineCurrentlyDown: boolean;
 };
 
+export type ServiceCallRecordState = "ACTIVE" | "ARCHIVED" | "DELETED";
+
 export type ServiceCall = {
   id: string;
   workOrderNumber: string;
@@ -229,6 +231,16 @@ export type ServiceCall = {
   attachments: ServiceCallAttachment[];
   customerConfirmation: ServiceCallCustomerConfirmation;
   isDraft: boolean;
+  /** Patch 49B — operational lifecycle */
+  recordState?: ServiceCallRecordState;
+  deletedAt?: string | null;
+  deletedByUserId?: string | null;
+  deletionReason?: string | null;
+  deletionNotes?: string | null;
+  archivedAt?: string | null;
+  archivedByUserId?: string | null;
+  archiveReason?: string | null;
+  updatedAtVersion?: number;
 };
 
 export type ServiceCallSortKey =

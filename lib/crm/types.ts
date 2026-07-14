@@ -51,6 +51,8 @@ export type DocumentCategory =
   | "WARRANTY"
   | "OTHER";
 
+export type CrmRecordState = "ACTIVE" | "ARCHIVED" | "DELETED";
+
 export type CrmCustomer = {
   id: string;
   customerNumber: string;
@@ -67,6 +69,18 @@ export type CrmCustomer = {
   preferredBusinessHours: string;
   createdAt: string;
   updatedAt: string;
+  /** Patch 49B — operational lifecycle */
+  recordState?: CrmRecordState;
+  deletedAt?: string | null;
+  deletedByUserId?: string | null;
+  deletionReason?: string | null;
+  deletionNotes?: string | null;
+  archivedAt?: string | null;
+  archivedByUserId?: string | null;
+  archiveReason?: string | null;
+  region?: string | null;
+  accountManager?: string | null;
+  updatedAtVersion?: number;
 };
 
 export type CrmContact = {

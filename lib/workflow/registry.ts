@@ -20,7 +20,7 @@ export const WORKFLOW_CHAIN: WorkflowStep[] = [
   { module: "inventory", label: "Inventory", path: "/inventory" },
   { module: "order-parts", label: "Order Parts", path: "/order-parts" },
   { module: "knowledge-base", label: "Knowledge Base", path: "/knowledge-base" },
-  { module: "ai-technician", label: "AI Technician", path: "/ai-technician" },
+  { module: "ai-technician", label: "Matrix Assist", path: "/ai-technician" },
 ];
 
 const CHAIN_PATH_OVERRIDES: Partial<Record<WorkflowModule, (ctx: WorkflowContext) => string>> = {

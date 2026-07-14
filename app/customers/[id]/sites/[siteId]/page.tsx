@@ -47,7 +47,7 @@ export default function SiteDetailPage({
       <MatrixShell title="Site" activePath="/customers">
         <MatrixEmptyState
           title="Site not found"
-          description="Return to the customer dashboard."
+          description="Return to the customer record."
           actionLabel="Back"
           onAction={() => {
             window.location.href = `/customers/${id}`;
@@ -65,7 +65,7 @@ export default function SiteDetailPage({
         breadcrumbs={["Matrix", "Customers", "Sites", site.name]}
         actions={
           <MatrixButton href={`/customers/${id}`} variant="secondary" size="md">
-            Customer dashboard
+            Back to customer
           </MatrixButton>
         }
       />

@@ -290,3 +290,11 @@ export function IconClock(p: IconProps) {
     </svg>
   );
 }
+
+export function IconShield(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M12 3l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3z" />
+    </svg>
+  );
+}

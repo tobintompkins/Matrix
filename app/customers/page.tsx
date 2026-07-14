@@ -42,12 +42,12 @@ export default function CustomersPage() {
       <WorkflowPageShell current="customer" context={workflowContext}>
         <MatrixPageHeader
           title="Customers"
-          subtitle="Enterprise accounts, sites, assets, contracts, warranties, and fleet dashboards."
+          subtitle="Enterprise accounts, sites, assets, contracts, warranties, and fleet overviews."
           breadcrumbs={["Matrix", "Service Platform", "Customers"]}
           actions={
             <div className="flex flex-wrap gap-2">
               <MatrixButton href="/customers/cust-sfx" variant="secondary" size="md">
-                Open SFX Dashboard
+                Open SFX
               </MatrixButton>
               <MatrixButton href="/add-customer" variant="primary" size="md">
                 Add Customer

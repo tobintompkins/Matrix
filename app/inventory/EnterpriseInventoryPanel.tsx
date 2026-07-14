@@ -158,7 +158,7 @@ export default function EnterpriseInventoryPanel() {
       type: "RECEIVE",
       partId: part.id,
       quantity: 1,
-      reason: "Quick receive from dashboard",
+      reason: "Quick receive from inventory",
       user: "Warehouse",
       destinationLocationId: main.id,
     });
@@ -167,7 +167,7 @@ export default function EnterpriseInventoryPanel() {
   }
 
   const tabs: Array<{ id: HubTab; label: string }> = [
-    { id: "dashboard", label: "Dashboard" },
+    { id: "dashboard", label: "Overview" },
     { id: "catalog", label: "Catalog" },
     { id: "stock", label: "Stock" },
     { id: "transactions", label: "Transactions" },

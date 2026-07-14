@@ -8,6 +8,7 @@ import {
   MatrixSection,
   MatrixStatusBadge,
 } from "../components/ui";
+import MatrixAssistPanel from "../components/matrix-assist/MatrixAssistPanel";
 import { sampleInventoryItems } from "@/lib/inventory/data";
 import { createServiceCallPartsOrderDraftLine } from "@/lib/inventory/helpers";
 import type { PartsOrderDraftLine } from "@/lib/inventory/types";
@@ -97,6 +98,9 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
 
   const [partQuery, setPartQuery] = useState("");
   const [partsDraft, setPartsDraft] = useState<PartsOrderDraftLine[]>([]);
+  const [pendingAssistDraft, setPendingAssistDraft] = useState<string | null>(
+    null,
+  );
 
   const canViewInternal = hasMatrixPermission(
     DEV_FALLBACK_ROLE,
@@ -546,6 +550,65 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
 
       {tab === "diagnosis" && (
         <MatrixSection title="Diagnosis & resolution">
+          <div className="mb-6">
+            <MatrixAssistPanel
+              serviceCallId={call.id}
+              machineId={call.machine.machineId}
+              defaultSymptom={
+                call.problem.issueTitle || call.problem.symptoms || ""
+              }
+              compact
+              onDraftNotesReady={(text) => setPendingAssistDraft(text)}
+            />
+            {pendingAssistDraft ? (
+              <MatrixCard
+                title="AI-generated draft — review before saving"
+                className="mt-4"
+              >
+                <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-3 text-xs text-slate-300">
+                  {pendingAssistDraft}
+                </pre>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <MatrixButton
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      const next = {
+                        ...call,
+                        resolution: {
+                          ...call.resolution,
+                          workPerformed: call.resolution.workPerformed
+                            ? `${call.resolution.workPerformed}\n\n${pendingAssistDraft}`
+                            : pendingAssistDraft,
+                        },
+                      };
+                      setCall(next);
+                      setPendingAssistDraft(null);
+                      setNotice(
+                        "Draft appended to Work performed. Review and save via normal service-call controls.",
+                      );
+                    }}
+                  >
+                    Approve & append to Work performed
+                  </MatrixButton>
+                  <MatrixButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setPendingAssistDraft(null)}
+                  >
+                    Discard draft
+                  </MatrixButton>
+                </div>
+              </MatrixCard>
+            ) : (
+              <p className="mt-2 text-xs text-slate-500">
+                Draft notes require explicit approval before they touch the
+                service call record.
+              </p>
+            )}
+          </div>
           <MatrixCard title="Resolution fields">
             <div className="grid gap-4">
               {(

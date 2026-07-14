@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "../../components/ui";
 
 const LINKS = [
-  { href: "/maintenance", label: "PM Dashboard", exact: true },
+  { href: "/maintenance", label: "PM Overview", exact: true },
+  { href: "/maintenance/technician", label: "Technician" },
   { href: "/maintenance/counts", label: "Meter Counts" },
   { href: "/maintenance/schedule", label: "PM Schedule" },
   { href: "/maintenance/cleanings", label: "Cleanings" },

@@ -251,6 +251,13 @@ model Printer {
   nextJointUnitDueCount   Int?
   nextDTFDueCount         Int?
 
+  /// Per-machine interval overrides (Patch 45) — null = use model defaults when configuring.
+  pmIntervalOverride            Int?
+  cleaningIntervalOverride      Int?
+  jointUnitIntervalOverride     Int?
+  dtfPmIntervalOverride         Int?
+  dueSoonThresholdOverride      Int?
+
   location       Location     @relation(fields: [locationId], references: [id])
   printerModel   PrinterModel @relation(fields: [printerModelId], references: [id])
   createdAt      DateTime     @default(now())
@@ -844,16 +851,21 @@ model CopyCountHistory {
 
 /// Completed PM / cleaning / joint / DTF events (auditable history).
 model MaintenanceCompletion {
-  id                   String   @id @default(cuid())
-  printerId            String
-  kind                 String // PM | CLEANING | JOINT_UNIT | DTF_PM
-  completedAt          DateTime
+  id                    String   @id @default(cuid())
+  printerId             String
+  kind                  String // PM | CLEANING | JOINT_UNIT | DTF_PM
+  completedAt           DateTime
   copyCountAtCompletion Int
-  technician           String?
-  notes                String?
-  workPerformed        String?
-  printer              Printer  @relation(fields: [printerId], references: [id])
-  createdAt            DateTime @default(now())
+  technician            String?
+  notes                 String?
+  workPerformed         String?
+  /// Patch 45 — audit / idempotency for count-based PM completions.
+  previousCount         Int?
+  intervalAtCompletion  Int?
+  recordedBy            String?
+  idempotencyKey        String?  @unique
+  printer               Printer  @relation(fields: [printerId], references: [id])
+  createdAt             DateTime @default(now())
 
   @@index([printerId, completedAt])
 }
@@ -1995,6 +2007,146 @@ model WarehouseAuditEntry {
 }
 
 // -----------------------------------------------------------------------------
+// PATCH 45 — PM / Cleaning Count Management (Prisma-backed fleet PM state)
+// Digital Twin machine IDs (e.g. MX-GD-001) are the machine keys.
+// -----------------------------------------------------------------------------
+
+/// Denormalized per-machine PM state — fleet queries without full Location seed.
+model MachinePmState {
+  id                   String    @id @default(cuid())
+  machineId            String    @unique
+  assetTag             String?
+  nickname             String?
+  printerModel         String?
+  customerName         String?
+  siteName             String?
+  assignedTechnician   String?
+  currentMeterCount    Int?
+  lastPmCount          Int?
+  lastPmAt             DateTime?
+  lastPmTechnician     String?
+  /// Patch 46 — last completed PM labor minutes
+  lastLaborMinutes     Int?
+  /// null = Not Configured
+  pmInterval           Int?
+  /// null = use 10% of interval
+  dueSoonThreshold     Int?
+  nextPmDueCount       Int?
+  modelDefaultInterval Int?
+  active               Boolean   @default(true)
+  /// Optional link to Printer row when enterprise fleet is seeded.
+  printerId            String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  history MachinePmHistory[]
+  drafts  MachinePmDraft[]
+
+  @@index([active, printerModel])
+  @@index([customerName])
+  @@index([assignedTechnician])
+}
+
+model MachinePmHistory {
+  id                     String   @id @default(cuid())
+  machinePmStateId       String
+  machineId              String
+  completedAt            DateTime
+  countAtCompletion      Int
+  previousPmCount        Int?
+  pmIntervalAtCompletion Int
+  technician             String
+  recordedBy             String?
+  notes                  String?
+  idempotencyKey         String?  @unique
+  /// Patch 46 — workflow & documentation
+  timeStarted            DateTime?
+  timeFinished           DateTime?
+  laborMinutes           Int?
+  qualityScore           Float?
+  checklistJson          String?
+  checklistCompletionPct Float?
+  partsUsedJson          String?
+  statusAtCompletion     String?
+  workPerformed          String?
+  customerSignaturePlaceholder String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  machinePmState         MachinePmState @relation(fields: [machinePmStateId], references: [id], onDelete: Cascade)
+
+  @@index([machineId, completedAt])
+  @@index([machinePmStateId, completedAt])
+  @@index([technician, completedAt])
+}
+
+/// Meter readings that update PM state (do not create PM history by themselves).
+model MachinePmMeterEntry {
+  id               String   @id @default(cuid())
+  machineId        String
+  meterCount       Int
+  previousCount    Int?
+  enteredBy        String
+  notes            String?
+  lowerCountReason String?
+  recordedAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  idempotencyKey   String?  @unique
+
+  @@index([machineId, recordedAt])
+}
+
+/// Patch 46 — configurable PM checklist template per printer model.
+model MachinePmChecklistTemplate {
+  id           String   @id @default(cuid())
+  printerModel String
+  itemKey      String
+  taskName     String
+  description  String?
+  sortOrder    Int      @default(0)
+  required     Boolean  @default(true)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([printerModel, itemKey])
+  @@index([printerModel, active, sortOrder])
+}
+
+/// Patch 46 — in-progress PM draft (save / resume).
+model MachinePmDraft {
+  id               String   @id @default(cuid())
+  machinePmStateId String
+  machineId        String
+  technician       String
+  checklistJson    String
+  partsUsedJson    String?
+  notes            String?
+  timeStarted      DateTime?
+  meterReading     Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  machinePmState   MachinePmState @relation(fields: [machinePmStateId], references: [id], onDelete: Cascade)
+
+  @@unique([machineId, technician])
+  @@index([machineId])
+}
+
+/// Patch 46 — PM audit trail (never delete history rows).
+model MachinePmAuditLog {
+  id            String   @id @default(cuid())
+  machineId     String?
+  user          String?
+  action        String
+  previousValue String?
+  newValue      String?
+  details       String?
+  createdAt     DateTime @default(now())
+
+  @@index([machineId, createdAt])
+  @@index([action, createdAt])
+}
+
+// -----------------------------------------------------------------------------
 // PATCH 44 — PM Intelligence (sessionStorage runtime; Prisma persistence target)
 // -----------------------------------------------------------------------------
 
@@ -2084,4 +2236,246 @@ model PmIntelligenceAudit {
 
   @@index([printerId, timestamp])
   @@index([action])
+}
+
+// -----------------------------------------------------------------------------
+// MATRIX ASSIST (Patch 48) — advisory technician diagnostics
+// Steps are stored relationally (MatrixAssistDiagnosticStep). Suggested causes
+// and template payloads use JSON strings for flexible structured blobs.
+// Clerk user ids are stored as strings (no Prisma User FK) — same pattern as PM.
+// -----------------------------------------------------------------------------
+
+model MatrixAssistDiagnosticSession {
+  id                       String    @id @default(cuid())
+  organizationId           String?
+  serviceCallId            String?
+  machineId                String?
+  customerId               String?
+  technicianId             String?
+  technicianName           String?
+  status                   String    @default("DRAFT") // DRAFT | IN_PROGRESS | COMPLETED | CANCELLED
+  reportedSymptom          String?
+  technicianObservations   String?
+  assistantSummary         String?
+  suggestedCausesJson      String?
+  troubleshootingStepsJson String?
+  technicianConclusion     String?
+  workflowStep             Int       @default(1)
+  modelHint                String?
+  errorCode                String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  completedAt              DateTime?
+
+  steps     MatrixAssistDiagnosticStep[]
+  messages  MatrixAssistMessage[]
+  feedback  MatrixAssistFeedback[]
+
+  @@index([organizationId, createdAt])
+  @@index([serviceCallId])
+  @@index([machineId])
+  @@index([technicianId, status])
+}
+
+model MatrixAssistDiagnosticStep {
+  id                   String   @id @default(cuid())
+  diagnosticSessionId  String
+  stepOrder            Int
+  title                String
+  instructions         String?
+  result               String   @default("NOT_STARTED") // NOT_STARTED | PASSED | FAILED | NOT_APPLICABLE
+  technicianNote       String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  session MatrixAssistDiagnosticSession @relation(fields: [diagnosticSessionId], references: [id], onDelete: Cascade)
+
+  @@index([diagnosticSessionId, stepOrder])
+}
+
+model MatrixAssistMessage {
+  id                   String   @id @default(cuid())
+  organizationId       String?
+  diagnosticSessionId  String?
+  serviceCallId        String?
+  machineId            String?
+  userId               String?
+  role                 String // USER | ASSISTANT | SYSTEM
+  content              String
+  createdAt            DateTime @default(now())
+
+  session MatrixAssistDiagnosticSession? @relation(fields: [diagnosticSessionId], references: [id], onDelete: Cascade)
+
+  @@index([diagnosticSessionId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+model MatrixAssistFeedback {
+  id                   String   @id @default(cuid())
+  organizationId       String?
+  diagnosticSessionId  String?
+  messageId            String?
+  userId               String?
+  rating               String // HELPFUL | NOT_HELPFUL | PARTIALLY_HELPFUL
+  reason               String?
+  comment              String?
+  createdAt            DateTime @default(now())
+
+  session MatrixAssistDiagnosticSession? @relation(fields: [diagnosticSessionId], references: [id], onDelete: Cascade)
+
+  @@index([diagnosticSessionId])
+}
+
+model MatrixAssistUsageEvent {
+  id                 String   @id @default(cuid())
+  organizationId     String?
+  userId             String?
+  eventType          String
+  durationMs         Int?
+  tokenUsage         Int?
+  estimatedCostCents Int?
+  errorCode          String?
+  createdAt          DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model TroubleshootingTemplate {
+  id                     String   @id @default(cuid())
+  organizationId         String?
+  printerModel           String?
+  machineFamily          String?
+  symptomCategory        String
+  errorCode              String?
+  assembly               String?
+  title                  String
+  safetyNotes            String?
+  stepsJson              String
+  relatedPartsJson       String?
+  documentationRefsJson  String?
+  active                 Boolean  @default(true)
+  version                Int      @default(1)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([symptomCategory, printerModel])
+  @@index([errorCode])
+}
+
+model MatrixAssistSettings {
+  id                              String   @id @default(cuid())
+  organizationId                  String?  @unique
+  enabled                         Boolean  @default(true)
+  allowHistorySummaries           Boolean  @default(true)
+  allowPartsSuggestions           Boolean  @default(true)
+  allowServiceNoteDrafts          Boolean  @default(true)
+  allowTroubleshootingTemplates   Boolean  @default(true)
+  requireFeedbackOnComplete       Boolean  @default(false)
+  maxResponseLength               Int      @default(4000)
+  conversationRetentionDays       Int      @default(90)
+  approvedModel                   String?
+  disclaimerOverride              String?
+  updatedBy                       String?
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// ENTERPRISE ADMINISTRATION CENTER (Patch 49A)
+// Application directory + config — Clerk remains the identity provider.
+// Deactivation preserves historical operational records.
+// -----------------------------------------------------------------------------
+
+model AdminDirectoryUser {
+  id                   String    @id @default(cuid())
+  organizationId       String
+  clerkUserId          String?
+  email                String
+  name                 String
+  matrixRole           String
+  status               String    @default("Active") // Active | Inactive | Invited | Pending | Suspended | Deactivated
+  isActive             Boolean   @default(true)
+  primaryRegionId      String?
+  managerId            String?
+  accessScope          String    @default("ORGANIZATION") // SELF | ASSIGNED_WORK | TEAM | REGION | ORGANIZATION
+  lastActiveAt         DateTime?
+  deactivatedAt        DateTime?
+  deactivatedByUserId  String?
+  deactivationReason   String?
+  updatedAtVersion     Int       @default(1)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([organizationId, email])
+  @@index([organizationId, status])
+  @@index([organizationId, matrixRole])
+  @@index([primaryRegionId])
+  @@index([managerId])
+}
+
+model AdminRegion {
+  id             String   @id @default(cuid())
+  organizationId String
+  key            String
+  label          String
+  description    String?
+  active         Boolean  @default(true)
+  displayOrder   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, key])
+  @@index([organizationId, active])
+}
+
+model AdminFeatureControl {
+  id             String   @id @default(cuid())
+  organizationId String
+  featureKey     String
+  enabled        Boolean  @default(true)
+  description    String?
+  updatedByUserId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, featureKey])
+  @@index([organizationId])
+}
+
+model AdminConfigurationEntry {
+  id                String   @id @default(cuid())
+  organizationId    String
+  configurationType String
+  key               String
+  label             String
+  description       String?
+  active            Boolean  @default(true)
+  displayOrder      Int      @default(0)
+  protected         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([organizationId, configurationType, key])
+  @@index([organizationId, configurationType, active])
+}
+
+model AdminOrganizationProfile {
+  id                  String   @id @default(cuid())
+  organizationId      String   @unique
+  legalName           String?
+  displayName         String?
+  supportEmail        String?
+  supportPhone        String?
+  website             String?
+  address             String?
+  defaultTimeZone     String?  @default("America/New_York")
+  dateFormat          String?  @default("MM/dd/yyyy")
+  timeFormat          String?  @default("12h")
+  defaultRegionId     String?
+  defaultWarehouseId  String?
+  businessHours       String?
+  updatedByUserId     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
