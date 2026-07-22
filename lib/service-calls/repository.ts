@@ -224,6 +224,28 @@ export function updateServiceCallStatus(
 
   const saved = replaceServiceCall(next);
   if (!saved) return { ok: false, error: "Failed to update service call." };
+
+  // Patch 51A.3 — queue predictive re-eval on resolve/close (client-safe fetch)
+  if (to === "RESOLVED" || to === "CLOSED") {
+    const machineId = saved.machine.machineId;
+    if (machineId && typeof fetch !== "undefined") {
+      void fetch("/api/ai-operations/automations/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventType: "predictive.reevaluate_requested",
+          entityType: "Machine",
+          entityId: machineId,
+          payload: {
+            machineId,
+            reason: `service_call_${to.toLowerCase()}`,
+            requestedAt: new Date().toISOString(),
+          },
+        }),
+      }).catch(() => {});
+    }
+  }
+
   return { ok: true, call: saved };
 }
 

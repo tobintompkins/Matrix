@@ -1,0 +1,27 @@
+{
+  "project": "Matrix",
+  "patch": "51B.1",
+  "title": "Customer Portal & Service Hub Integration",
+  "type": "integration",
+  "status": "implemented",
+  "dependsOn": [
+    "51A.1",
+    "51A.2",
+    "51A.3",
+    "51A.4",
+    "51A.5 Part 1",
+    "51A.5 Part 2",
+    "51A.5 Part 3"
+  ],
+  "nextPatch": "51B.2 — Mobile Technician Experience",
+  "branch": "patch/51b-1-customer-portal-integration",
+  "safetyRecord": "docs/PATCH_51B1_SAFETY.md",
+  "instructions": [
+    "Inspect before editing",
+    "Reuse existing features",
+    "Avoid duplicate models and routes",
+    "Preserve Matrix Assist sample mode",
+    "Validate authorization server-side",
+    "Run lint, type-check, tests, and build"
+  ]
+}

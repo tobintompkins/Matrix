@@ -37,7 +37,7 @@ export function notifyPortalCustomerTicketEvent(input: {
   ticketNumber: string;
   printerId?: string | null;
   printerName?: string | null;
-  priority?: "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   /** Extra staff recipients (dispatchers, etc.) */
   alsoNotify?: string[];
 }) {

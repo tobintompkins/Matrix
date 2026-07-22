@@ -3,6 +3,7 @@ import { forbidUnlessAi, resolveAiActor } from "@/lib/ai/auth";
 import { prisma } from "@/lib/db/prisma";
 import { DEFAULT_ORG_ID } from "@/lib/admin/types";
 import { writePredictiveAudit } from "@/lib/predictive-maintenance/settings";
+import { recordPredictiveOutcome } from "@/lib/predictive-maintenance/outcomes";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +80,34 @@ export async function PATCH(request: Request) {
     where: { id: body.id },
     data,
   });
+
+  if (body.action === "accept") {
+    await recordPredictiveOutcome({
+      machineId: updated.machineId,
+      organizationId: updated.organizationId,
+      recommendationId: updated.id,
+      healthSnapshotId: updated.healthSnapshotId,
+      outcomeType: "RECOMMENDATION_ACCEPTED",
+    });
+  } else if (body.action === "dismiss") {
+    await recordPredictiveOutcome({
+      machineId: updated.machineId,
+      organizationId: updated.organizationId,
+      recommendationId: updated.id,
+      healthSnapshotId: updated.healthSnapshotId,
+      outcomeType: "RECOMMENDATION_DISMISSED",
+      notes: body.dismissalReason ?? null,
+    });
+  } else if (body.action === "complete") {
+    await recordPredictiveOutcome({
+      machineId: updated.machineId,
+      organizationId: updated.organizationId,
+      recommendationId: updated.id,
+      healthSnapshotId: updated.healthSnapshotId,
+      outcomeType: "RECOMMENDATION_COMPLETED",
+    });
+  }
+
   await writePredictiveAudit({
     action: `predictive.recommendation_${body.action}`,
     entityType: "PredictiveMaintenanceRecommendation",

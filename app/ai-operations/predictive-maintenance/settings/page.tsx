@@ -17,8 +17,10 @@ export default function PredictiveSettingsPage() {
     user?.publicMetadata as Record<string, unknown> | undefined,
   );
   const canManage = hasMatrixPermission(role, "MANAGE_PREDICTIVE_SETTINGS");
+  const canScore = hasMatrixPermission(role, "MANAGE_PREDICTIVE_SCORING");
   const [settings, setSettings] = useState<Record<string, unknown> | null>(null);
   const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
+  const [weights, setWeights] = useState<Record<string, number>>({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -34,6 +36,11 @@ export default function PredictiveSettingsPage() {
     }
     setSettings(json.settings);
     setProfile(json.profile);
+    try {
+      setWeights(JSON.parse(String(json.profile?.weightsJson || "{}")));
+    } catch {
+      setWeights({});
+    }
   }
 
   useEffect(() => {
@@ -65,6 +72,7 @@ export default function PredictiveSettingsPage() {
           requireApprovalForServiceCallCreation: Boolean(
             settings.requireApprovalForServiceCallCreation,
           ),
+          retentionDays: Number(settings.retentionDays ?? 180),
         }),
       },
     );
@@ -75,6 +83,35 @@ export default function PredictiveSettingsPage() {
     }
     setSettings(json.settings);
     setMessage("Settings saved. Historical snapshots keep their original scoring version.");
+  }
+
+  async function saveWeights() {
+    if (!canScore) return;
+    setMessage("");
+    const res = await fetch(
+      "/api/ai-operations/predictive-maintenance/settings",
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weightsJson: JSON.stringify(weights),
+          thresholdsJson: JSON.stringify({
+            warning: Number(settings?.healthScoreWarningThreshold ?? 70),
+            critical: Number(settings?.healthScoreCriticalThreshold ?? 40),
+          }),
+        }),
+      },
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) {
+      setError(json.error ?? "Weight save failed");
+      return;
+    }
+    setProfile(json.profile);
+    setMessage(
+      json.warning ??
+        "Scoring profile updated — applies to future evaluations only.",
+    );
   }
 
   function setField(key: string, value: unknown) {
@@ -115,6 +152,7 @@ export default function PredictiveSettingsPage() {
                   ["usageSpikePercent", "Usage spike %", "number"],
                   ["minimumDataQualityScore", "Min data quality", "number"],
                   ["minimumConfidenceForAlert", "Min confidence for alerts", "number"],
+                  ["retentionDays", "Retention days", "number"],
                 ] as const
               ).map(([key, label, type]) => (
                 <label key={key} className="block text-sm text-slate-300">
@@ -149,16 +187,66 @@ export default function PredictiveSettingsPage() {
           ) : (
             <p className="mt-3 text-xs text-slate-500">Read-only for your role.</p>
           )}
-          {profile ? (
-            <p className="mt-4 text-xs text-slate-500">
-              Scoring profile: {String(profile.name)} · v{String(profile.version)} ·{" "}
-              {String(settings?.scoringVersion ?? "")}
-            </p>
-          ) : null}
           <p className="mt-2 text-xs text-slate-500">
             Cron: POST /api/internal/predictive-maintenance/evaluate with
             PREDICTIVE_MAINTENANCE_CRON_SECRET.
           </p>
+        </MatrixCard>
+
+        <MatrixCard
+          className="mt-4"
+          title="Scoring profile weights"
+          subtitle={
+            profile
+              ? `${String(profile.name)} · v${String(profile.version)} · ${String(settings?.scoringVersion ?? "")}`
+              : "Default fleet scoring"
+          }
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {(
+              [
+                ["pmOverdue", "PM overdue"],
+                ["pmDueSoon", "PM due soon"],
+                ["repeatFailure", "Repeat failure"],
+                ["openEmergency", "Open emergency"],
+                ["staleMeter", "Stale / missing meter"],
+                ["usageSpike", "Usage spike"],
+                ["recentSuccessfulPm", "Recent PM bonus"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="block text-sm text-slate-300">
+                {label}
+                <input
+                  type="number"
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                  value={Number(weights[key] ?? 0)}
+                  disabled={!canScore}
+                  onChange={(e) =>
+                    setWeights((prev) => ({
+                      ...prev,
+                      [key]: Number(e.target.value),
+                    }))
+                  }
+                />
+              </label>
+            ))}
+          </div>
+          {canScore ? (
+            <div className="mt-4">
+              <MatrixButton
+                type="button"
+                variant="primary"
+                size="md"
+                onClick={() => void saveWeights()}
+              >
+                Save scoring weights
+              </MatrixButton>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-slate-500">
+              Scoring edits require MANAGE_PREDICTIVE_SCORING.
+            </p>
+          )}
         </MatrixCard>
       </MatrixAuthGuard>
     </MatrixShell>

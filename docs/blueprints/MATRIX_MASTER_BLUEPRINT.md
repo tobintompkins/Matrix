@@ -350,7 +350,7 @@ The Matrix landing experience is presented to users as the **Service Hub**.
 ### Patch progress
 - **51A** — Complete (AI Operations → Automations → Predictive Maintenance → Decision Engine → Executive Command Center)
 - **51B.1** — Implemented (Customer Portal ↔ Service Hub integration; shared context, typed customer status, customer Assist mode, Hub visibility markers)
-- **51B.2** — Next
+- **51B.2** — Next: Mobile Technician Experience
 
 ---
 

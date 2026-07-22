@@ -8,6 +8,7 @@ import {
   getOrCreatePredictiveSettings,
   settingsToDefaults,
 } from "@/lib/predictive-maintenance/settings";
+import { purgePredictiveRetention } from "@/lib/predictive-maintenance/retention";
 import { DEFAULT_ORG_ID } from "@/lib/admin/types";
 
 export const dynamic = "force-dynamic";
@@ -93,10 +94,13 @@ export async function POST(request: Request) {
     });
   }
 
+  const retention = await purgePredictiveRetention({ organizationId });
+
   return NextResponse.json({
     ok: true,
     reevaluated,
     pendingProcessed: pending.length,
     scheduledRun,
+    retention,
   });
 }

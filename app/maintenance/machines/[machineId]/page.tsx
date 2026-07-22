@@ -23,6 +23,7 @@ import {
 import type { PmDashboardRow } from "@/lib/maintenance/pm-prisma-repository";
 import { hasMatrixPermission } from "@/lib/auth/permissions";
 import { DEV_FALLBACK_ROLE } from "@/lib/auth/types";
+import PredictiveMachineChip from "../../../components/predictive/PredictiveMachineChip";
 
 type MachineDetail = PmDashboardRow & {
   history: Array<{
@@ -316,17 +317,14 @@ export default function MachinePmDetailPage() {
                 Model default interval:{" "}
                 {machine.modelDefaultInterval?.toLocaleString() ?? "—"}
               </p>
+              <div className="mt-3">
+                <PredictiveMachineChip machineId={machine.machineId} />
+              </div>
               <Link
                 href={`/digital-twin/${encodeURIComponent(machine.machineId)}`}
                 className="mt-3 inline-block text-sm text-cyan-400 hover:underline"
               >
                 Open Digital Twin
-              </Link>
-              <Link
-                href={`/ai-operations/predictive-maintenance/machines/${encodeURIComponent(machine.machineId)}`}
-                className="mt-2 block text-sm text-cyan-400 hover:underline"
-              >
-                Predictive health (advisory)
               </Link>
             </MatrixCard>
 

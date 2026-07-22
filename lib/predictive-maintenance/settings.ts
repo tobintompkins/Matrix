@@ -10,6 +10,13 @@ import {
   SCORING_VERSION,
   type DefaultPredictiveSettings,
 } from "./types";
+import { defaultThresholdsJson } from "./scoring-profile";
+
+export {
+  parseScoringWeights,
+  applyProfileThresholds,
+  type ScoringWeights,
+} from "./scoring-profile";
 
 export async function getOrCreatePredictiveSettings(
   organizationId = DEFAULT_ORG_ID,
@@ -92,10 +99,7 @@ export async function getOrCreateDefaultScoringProfile(
       isDefault: true,
       isActive: true,
       weightsJson: JSON.stringify(DEFAULT_WEIGHTS),
-      thresholdsJson: JSON.stringify({
-        warning: DEFAULT_PREDICTIVE_SETTINGS.healthScoreWarningThreshold,
-        critical: DEFAULT_PREDICTIVE_SETTINGS.healthScoreCriticalThreshold,
-      }),
+      thresholdsJson: defaultThresholdsJson(),
       version: "1",
     },
   });

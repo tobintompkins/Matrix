@@ -44,7 +44,7 @@ export function computeHealthScore(
   const bonuses: ScoreFactor[] = [];
   let base = 100;
 
-  const factors = detectRiskFactors(input, settings);
+  const factors = detectRiskFactors(input, settings, weights);
   const componentScores = {
     failureRiskScore: 0,
     pmUrgencyScore: 0,
@@ -125,12 +125,17 @@ export function computeHealthScore(
 export function evaluateMachineDeterministic(
   input: MachinePredictiveInput,
   settings: DefaultPredictiveSettings = DEFAULT_PREDICTIVE_SETTINGS,
+  weights: typeof DEFAULT_WEIGHTS = DEFAULT_WEIGHTS,
 ): EvaluationResult {
   const readiness = assessMachineDataReadiness(input, {
     staleMeterDays: settings.staleMeterDays,
   });
-  const riskFactors = detectRiskFactors(input, settings);
-  const { breakdown, componentScores } = computeHealthScore(input, settings);
+  const riskFactors = detectRiskFactors(input, settings, weights);
+  const { breakdown, componentScores } = computeHealthScore(
+    input,
+    settings,
+    weights,
+  );
   const forecast = calculateMaintenanceForecast(input, {
     pmDueSoonDays: settings.pmDueSoonDays,
   });

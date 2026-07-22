@@ -8,9 +8,12 @@ import { buildRecommendations } from "./recommendations";
 import { buildAlerts } from "./alerts";
 import {
   DEFAULT_PREDICTIVE_SETTINGS,
+  DEFAULT_WEIGHTS,
   type MachinePredictiveInput,
 } from "./types";
 import { summarizeMachineHealth } from "./ai-assist";
+import { parseScoringWeights } from "./scoring-profile";
+import { predictiveRowsToCsv } from "./export";
 
 function sampleMachine(
   overrides: Partial<MachinePredictiveInput> = {},
@@ -209,5 +212,39 @@ describe("AI assist fail-open", () => {
     const explanation = await summarizeMachineHealth(result);
     assert.match(explanation.summary, /Predicted health score/i);
     assert.equal(explanation.isSample, true);
+  });
+});
+
+describe("scoring profile weights", () => {
+  it("parses weights with defaults for missing keys", () => {
+    const w = parseScoringWeights('{"pmOverdue":40}');
+    assert.equal(w.pmOverdue, 40);
+    assert.equal(w.repeatFailure, DEFAULT_WEIGHTS.repeatFailure);
+  });
+
+  it("applies heavier overdue weight to lower scores", () => {
+    const machine = sampleMachine({
+      currentMeterCount: 600_000,
+      nextPmDueCount: 550_000,
+    });
+    const light = evaluateMachineDeterministic(machine, DEFAULT_PREDICTIVE_SETTINGS, {
+      ...DEFAULT_WEIGHTS,
+      pmOverdue: 5,
+    });
+    const heavy = evaluateMachineDeterministic(machine, DEFAULT_PREDICTIVE_SETTINGS, {
+      ...DEFAULT_WEIGHTS,
+      pmOverdue: 40,
+    });
+    assert.ok(heavy.healthScore < light.healthScore);
+  });
+});
+
+describe("export csv helper", () => {
+  it("escapes commas and quotes", () => {
+    const csv = predictiveRowsToCsv(
+      ["id", "title"],
+      [{ id: "1", title: 'Jam, "tray"' }],
+    );
+    assert.match(csv, /"Jam, ""tray"""/);
   });
 });

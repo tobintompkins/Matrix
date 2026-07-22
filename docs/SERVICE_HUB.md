@@ -26,4 +26,4 @@ Internal identifiers (`DashboardPage`, `DashboardOpsPanel`, `/api/pm/dashboard`,
 - Patch 45/46 Preventive Maintenance and technician workflows are unchanged and remain linked from the Service Hub.
 - **51A** — Complete
 - **51B.1** — Implemented: portal-submitted badge, customer status preview, customer-visible updates with visibility markers on ticket timelines, portal attention item
-- **51B.2** — Next
+- **51B.2** — Next: Mobile Technician Experience

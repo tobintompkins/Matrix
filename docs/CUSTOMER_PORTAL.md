@@ -8,7 +8,7 @@ Secure customer self-service built on the Patch 42 portal foundation.
 |-------|--------|
 | **51A** (AI Ops → Executive Command Center) | Complete |
 | **51B.1** (Customer Portal ↔ Service Hub integration) | Implemented |
-| **51B.2** | Next |
+| **51B.2** | Next — Mobile Technician Experience |
 
 ## Architecture
 
@@ -137,7 +137,7 @@ Connects the Customer Portal to the same service-call records used by Service Hu
 `postCustomerVisibleUpdate()` in service-dispatch — audited, visible in portal timeline only when `visibleToCustomer` is true.
 
 ### Next
-**51B.2** — follow-on portal/Service Hub enhancements (see patch backlog).
+**51B.2 — Mobile Technician Experience**
 
 ## Migration
 

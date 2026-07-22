@@ -6,6 +6,10 @@ import {
   settingsToDefaults,
   updatePredictiveSettings,
 } from "@/lib/predictive-maintenance/settings";
+import {
+  parseScoringWeights,
+  applyProfileThresholds,
+} from "@/lib/predictive-maintenance/scoring-profile";
 import { DEFAULT_ORG_ID } from "@/lib/admin/types";
 import { DEFAULT_WEIGHTS } from "@/lib/predictive-maintenance/types";
 import { evaluateMachineDeterministic } from "@/lib/predictive-maintenance/scoring-engine";
@@ -56,19 +60,22 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  const settings = settingsToDefaults(
-    await getOrCreatePredictiveSettings(DEFAULT_ORG_ID),
+  const settings = applyProfileThresholds(
+    settingsToDefaults(await getOrCreatePredictiveSettings(DEFAULT_ORG_ID)),
+    (await getOrCreateDefaultScoringProfile(DEFAULT_ORG_ID)).thresholdsJson,
   );
+  const profile = await getOrCreateDefaultScoringProfile(DEFAULT_ORG_ID);
+  const weights = parseScoringWeights(profile.weightsJson);
   const input = await gatherMachinePredictiveInput(body.machineId);
   if (!input) {
     return NextResponse.json({ ok: false, error: "Machine not found." }, { status: 404 });
   }
-  const result = evaluateMachineDeterministic(input, settings);
+  const result = evaluateMachineDeterministic(input, settings, weights);
   return NextResponse.json({
     ok: true,
     preview: true,
     result,
-    weights: DEFAULT_WEIGHTS,
+    weights,
     note: "Preview only — historical snapshots are not rewritten.",
   });
 }

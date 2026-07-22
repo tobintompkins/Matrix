@@ -54,14 +54,24 @@ POST /api/internal/predictive-maintenance/evaluate
 Authorization: Bearer <secret>
 ```
 
-Processes queued `predictive.reevaluate_requested` events, then optionally runs a fleet batch when scheduled evaluation is enabled in settings.
+Processes queued `predictive.reevaluate_requested` events, optionally runs a fleet batch when scheduled evaluation is enabled, then **purges** snapshots/alerts/runs older than `retentionDays`.
 
 ## Event-driven re-evaluation
 
 Non-blocking queue after:
 
 - Meter reading create (`/api/pm/meter`)
-- Service call create / close (client-notify)
+- Service call create
+- Service call resolve/close (`updateServiceCallStatus` + client notify)
+
+## Export
+
+`GET /api/ai-operations/predictive-maintenance/export?dataset=snapshots|alerts|recommendations|runs&format=csv|json&days=90`  
+Requires `EXPORT_PREDICTIVE_DATA`.
+
+## Outcome links
+
+Recommendation accept / dismiss / complete writes `PredictiveOutcomeLink` rows for accuracy groundwork (§29).
 
 ## Permissions
 

@@ -30,9 +30,10 @@ Recorded when applying `04_ROLLBACK_AND_SAFETY.md` after implementation.
 3. Roll back only the new portal migration with the repo’s apply/migrate docs — do not hand-delete shared CRM/service records.
 4. Old portal routes (`/portal/tickets`, `/portal/printers`, `/portal/maintenance`) remain; aliases were additive.
 
-## Safety constraints observed
+## Patch manifest
 
-- No duplicate portal or service-call model
-- No destructive SQL (`CREATE TABLE IF NOT EXISTS` style applies)
-- Feature work is integration on existing portal + Service Hub (`/dashboard`)
-- `.env` / `.env.local` excluded from git
+See `docs/patches/05_PATCH_MANIFEST_51B_1.json`.
+
+- **Type:** integration (not a second portal)
+- **Depends on:** 51A.1 → 51A.5 Part 3 (complete)
+- **Next:** 51B.2 — Mobile Technician Experience

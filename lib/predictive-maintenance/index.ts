@@ -15,3 +15,7 @@ export * from "./evaluate";
 export * from "./emit";
 export * from "./queue";
 export * from "./ai-assist";
+export * from "./retention";
+export * from "./outcomes";
+export * from "./export";
+export * from "./scoring-profile";

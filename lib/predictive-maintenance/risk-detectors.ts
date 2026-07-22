@@ -7,7 +7,7 @@ import type {
   MachinePredictiveInput,
   PredictiveRiskFactor,
 } from "./types";
-import { DEFAULT_PREDICTIVE_SETTINGS } from "./types";
+import { DEFAULT_PREDICTIVE_SETTINGS, DEFAULT_WEIGHTS } from "./types";
 
 function daysBetween(a: string, b: string): number {
   return Math.abs(
@@ -22,6 +22,7 @@ function normalizeIssue(text: string): string {
 export function detectRiskFactors(
   input: MachinePredictiveInput,
   settings: DefaultPredictiveSettings = DEFAULT_PREDICTIVE_SETTINGS,
+  weights: typeof DEFAULT_WEIGHTS = DEFAULT_WEIGHTS,
 ): PredictiveRiskFactor[] {
   const factors: PredictiveRiskFactor[] = [];
   const now = new Date();
@@ -43,7 +44,7 @@ export function detectRiskFactors(
       factors.push({
         key: "REPEAT_FAILURE",
         severity: calls.length >= settings.repeatFailureThreshold + 1 ? "CRITICAL" : "HIGH",
-        scoreImpact: 15,
+        scoreImpact: weights.repeatFailure,
         confidence: 75,
         title: "Repeat service issue pattern",
         explanation: `${calls.length} service calls with similar theme ("${theme}") in ${settings.repeatFailureLookbackDays} days.`,
@@ -66,7 +67,7 @@ export function detectRiskFactors(
     factors.push({
       key: "OPEN_EMERGENCY",
       severity: "CRITICAL",
-      scoreImpact: 18,
+      scoreImpact: weights.openEmergency,
       confidence: 90,
       title: "Open emergency / critical service call",
       explanation: `${openEmergency.length} open high-priority service call(s).`,
@@ -89,7 +90,7 @@ export function detectRiskFactors(
     factors.push({
       key: "PM_OVERDUE",
       severity: overdueBy > (input.pmInterval ?? 10000) * 0.2 ? "CRITICAL" : "HIGH",
-      scoreImpact: 22,
+      scoreImpact: weights.pmOverdue,
       confidence: 85,
       title: "PM overdue by meter",
       explanation: `Current meter ${input.currentMeterCount} exceeds due meter ${input.nextPmDueCount} by ${overdueBy}.`,
@@ -111,7 +112,7 @@ export function detectRiskFactors(
       factors.push({
         key: "STALE_METER",
         severity: "WARNING",
-        scoreImpact: 12,
+        scoreImpact: weights.staleMeter,
         confidence: 80,
         title: "Stale meter reading",
         explanation: `Last meter reading was ${Math.floor(ageDays)} days ago (threshold ${settings.staleMeterDays}).`,
@@ -128,7 +129,7 @@ export function detectRiskFactors(
     factors.push({
       key: "MISSING_METER",
       severity: "WARNING",
-      scoreImpact: 12,
+      scoreImpact: weights.staleMeter,
       confidence: 70,
       title: "Missing meter history",
       explanation: "No meter readings available for usage or PM distance calculation.",
@@ -155,7 +156,7 @@ export function detectRiskFactors(
       factors.push({
         key: "USAGE_SPIKE",
         severity: "WARNING",
-        scoreImpact: 8,
+        scoreImpact: weights.usageSpike,
         confidence: 65,
         title: "Rapid usage increase",
         explanation: `Recent usage rate rose ~${Math.round(((lateRate - earlyRate) / earlyRate) * 100)}% vs earlier period.`,

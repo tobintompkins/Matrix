@@ -42,6 +42,7 @@ import {
 } from "@/lib/service-dispatch/repository";
 import { getCustomerStatusLabel } from "@/lib/portal/status-map";
 import { notifyPortalCustomerTicketEvent } from "@/lib/portal/notify-customers";
+import PredictiveMachineChip from "../components/predictive/PredictiveMachineChip";
 import { digitalTwinTechnicians } from "@/lib/digital-twin/data";
 
 type TabId =
@@ -427,12 +428,13 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
           >
             Open Digital Twin
           </MatrixButton>
+          <PredictiveMachineChip machineId={call.machine.machineId} className="self-center" />
           <MatrixButton
             href={`/ai-operations/predictive-maintenance/machines/${call.machine.machineId}`}
             size="lg"
             variant="secondary"
           >
-            Predictive Health
+            Predictive detail
           </MatrixButton>
           <MatrixButton href="/scanner" size="lg" variant="secondary">
             Open Scanner

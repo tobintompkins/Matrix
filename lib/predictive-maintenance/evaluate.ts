@@ -12,6 +12,10 @@ import {
   settingsToDefaults,
   writePredictiveAudit,
 } from "./settings";
+import {
+  parseScoringWeights,
+  applyProfileThresholds,
+} from "./scoring-profile";
 import { emitPredictiveEvent } from "./emit";
 import { summarizeMachineHealth } from "./ai-assist";
 import type { EvaluationResult } from "./types";
@@ -26,8 +30,10 @@ export async function evaluateSingleMachine(input: {
 }): Promise<{ ok: true; result: EvaluationResult; snapshotId: string } | { ok: false; error: string }> {
   const organizationId = input.organizationId ?? DEFAULT_ORG_ID;
   const settingsRow = await getOrCreatePredictiveSettings(organizationId);
-  await getOrCreateDefaultScoringProfile(organizationId);
-  const settings = settingsToDefaults(settingsRow);
+  const profile = await getOrCreateDefaultScoringProfile(organizationId);
+  const weights = parseScoringWeights(profile.weightsJson);
+  let settings = settingsToDefaults(settingsRow);
+  settings = applyProfileThresholds(settings, profile.thresholdsJson);
 
   if (!settings.enabled) {
     return { ok: false, error: "Predictive maintenance is disabled for this organization." };
@@ -43,7 +49,7 @@ export async function evaluateSingleMachine(input: {
     orderBy: { generatedAt: "desc" },
   });
 
-  const result = evaluateMachineDeterministic(machineInput, settings);
+  const result = evaluateMachineDeterministic(machineInput, settings, weights);
 
   // Patch previous score into alerts for drop detection
   if (previous) {
