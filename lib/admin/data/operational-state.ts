@@ -391,6 +391,22 @@ export function retentionStatus(deletedAt: string | null | undefined): {
 }
 
 /** Test helper — reset in-memory + session overlay. */
+/** Patch 50C-3 — remove overlay row after eligible permanent delete (no history cascade). */
+export function purgeOperationalRecord(
+  recordType: AdminRecordType,
+  recordId: string,
+): { ok: true } | { ok: false; error: string } {
+  const key = stateKey(recordType, recordId);
+  const next = ensureStore().filter(
+    (r) => stateKey(r.recordType, r.recordId) !== key,
+  );
+  if (next.length === ensureStore().length) {
+    return { ok: false, error: "Operational overlay record not found." };
+  }
+  commit(next);
+  return { ok: true };
+}
+
 export function __resetOperationalStateForTests(): void {
   memoryStore = [];
   if (typeof window !== "undefined") {

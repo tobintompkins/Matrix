@@ -79,9 +79,19 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
         permission: "ADMIN_EDIT_PART",
       },
       {
+        href: "/admin/archived-records",
+        label: "Archived Records",
+        permission: "VIEW_ARCHIVED_RECORDS",
+      },
+      {
         href: "/admin/deleted-records",
         label: "Deleted Records",
         permission: "VIEW_DELETED_RECORDS",
+      },
+      {
+        href: "/admin/managed-content",
+        label: "Managed Content",
+        permission: "MANAGE_ADMIN_CONTENT",
       },
     ],
   },
@@ -132,6 +142,31 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
         href: "/admin/executive",
         label: "Executive Dashboard",
         permission: "VIEW_EXECUTIVE_ADMIN_DASHBOARD",
+      },
+      {
+        href: "/admin/approvals",
+        label: "Approval Center",
+        permission: "VIEW_APPROVAL_CENTER",
+      },
+      {
+        href: "/admin/organization-health",
+        label: "Organization Health",
+        permission: "VIEW_ORGANIZATION_HEALTH",
+      },
+      {
+        href: "/admin/data-quality",
+        label: "Data Quality Center",
+        permission: "VIEW_DATA_QUALITY_CENTER",
+      },
+      {
+        href: "/admin/system-logs",
+        label: "System Logs",
+        permission: "VIEW_SYSTEM_LOGS",
+      },
+      {
+        href: "/admin/role-simulator",
+        label: "Role Simulator",
+        permission: "VIEW_ROLE_SIMULATOR",
       },
       {
         href: "/admin/reports",

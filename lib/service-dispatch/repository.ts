@@ -267,6 +267,11 @@ export function createDispatchTicket(input: CreateDispatchTicketInput) {
     ...call,
     ticketNumber: mxNumber,
   };
+
+  // Patch 51A.2 — notify automation framework (HTTP; client-safe)
+  void import("@/lib/automations/client-notify")
+    .then((m) => m.notifyServiceCallCreated(call))
+    .catch(() => undefined);
   replaceServiceCall(call);
 
   let warrantyStatus = "UNKNOWN";
@@ -823,6 +828,54 @@ export function listLabor(ticketId: string) {
 
 export function listTicketUpdates(ticketId: string) {
   return readStore().updates.filter((u) => u.ticketId === ticketId);
+}
+
+/** Patch 51B.1 — Staff posts a customer-safe timeline update (never internal diagnostics). */
+export function postCustomerVisibleUpdate(input: {
+  ticketId: string;
+  message: string;
+  actor: string;
+}) {
+  const call = getServiceCall(input.ticketId);
+  if (!call) return { ok: false as const, error: "Ticket not found." };
+  const message = input.message.trim();
+  if (!message) return { ok: false as const, error: "Message is required." };
+  if (message.length > 2000) {
+    return { ok: false as const, error: "Message is too long." };
+  }
+  let store = readStore();
+  store = ensureMeta(call, store);
+  const meta = store.ticketMeta[input.ticketId];
+  store = {
+    ...store,
+    updates: [
+      {
+        id: id("upd"),
+        ticketId: input.ticketId,
+        updateType: "MESSAGE",
+        previousStatus: call.status,
+        newStatus: call.status,
+        message,
+        createdBy: input.actor,
+        createdAt: nowIso(),
+        visibleToCustomer: true,
+        attachmentUrl: null,
+      },
+      ...store.updates,
+    ],
+  };
+  store = pushAudit(store, {
+    ticketId: input.ticketId,
+    ticketNumber: meta?.mxTicketNumber ?? input.ticketId,
+    action: "CUSTOMER_VISIBLE_UPDATE",
+    field: "customerUpdate",
+    previousValue: "",
+    newValue: message.slice(0, 120),
+    actor: input.actor,
+    sessionInfo: "web",
+  });
+  writeStore(store);
+  return { ok: true as const };
 }
 
 export function listTicketAudit(ticketId?: string) {

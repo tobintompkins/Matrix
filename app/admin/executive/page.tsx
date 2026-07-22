@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import AdminShell from "../../components/admin/AdminShell";
 import { MatrixCard, MatrixStatCard } from "../../components/ui";
@@ -157,6 +158,16 @@ export default function AdminExecutivePage() {
                       <li key={note}>{note}</li>
                     ))}
                   </ul>
+                  <p className="mt-4 text-sm text-slate-400">
+                    Pending and critical approvals are tracked in the{" "}
+                    <Link
+                      href="/admin/approvals"
+                      className="text-sky-400 hover:underline"
+                    >
+                      Approval Center
+                    </Link>
+                    .
+                  </p>
                 </MatrixCard>
               </div>
             </>

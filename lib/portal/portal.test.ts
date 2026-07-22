@@ -27,9 +27,11 @@ describe("customer portal Patch 42", () => {
   });
 
   it("maps internal statuses to customer-safe labels", () => {
-    assert.equal(getCustomerStatusLabel("DIAGNOSING"), "Technician Working");
-    assert.equal(getCustomerStatusLabel("ESCALATED"), "Service Team Review");
-    assert.equal(getCustomerStatusLabel("TRAVELING"), "Technician Traveling");
+    assert.equal(getCustomerStatusLabel("DIAGNOSING"), "In Progress");
+    assert.equal(getCustomerStatusLabel("ESCALATED"), "Under Review");
+    assert.equal(getCustomerStatusLabel("TRAVELING"), "In Progress");
+    assert.equal(getCustomerStatusLabel("NEW"), "Submitted");
+    assert.equal(getCustomerStatusLabel("SCHEDULED"), "Visit Scheduled");
   });
 
   it("rejects disabled memberships", () => {

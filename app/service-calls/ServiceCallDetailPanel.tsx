@@ -35,6 +35,13 @@ import {
   type ServiceCallNoteType,
   type ServiceCallStatus,
 } from "@/lib/service-calls";
+import {
+  getTicketMeta,
+  listTicketUpdates,
+  postCustomerVisibleUpdate,
+} from "@/lib/service-dispatch/repository";
+import { getCustomerStatusLabel } from "@/lib/portal/status-map";
+import { notifyPortalCustomerTicketEvent } from "@/lib/portal/notify-customers";
 import { digitalTwinTechnicians } from "@/lib/digital-twin/data";
 
 type TabId =
@@ -95,6 +102,8 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
   const [noteBody, setNoteBody] = useState("");
   const [noteType, setNoteType] = useState<ServiceCallNoteType>("GENERAL");
   const [noteInternal, setNoteInternal] = useState(true);
+  const [customerUpdate, setCustomerUpdate] = useState("");
+  const [portalTick, setPortalTick] = useState(0);
 
   const [partQuery, setPartQuery] = useState("");
   const [partsDraft, setPartsDraft] = useState<PartsOrderDraftLine[]>([]);
@@ -110,6 +119,25 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
   const allowed = useMemo(
     () => (call ? getAllowedServiceCallTransitions(call.status) : []),
     [call],
+  );
+
+  const ticketMeta = useMemo(() => {
+    void portalTick;
+    return getTicketMeta(serviceCallId);
+  }, [serviceCallId, portalTick]);
+  const portalSubmitted = ticketMeta?.source === "CUSTOMER_PORTAL";
+  const customerStatusPreview = call
+    ? getCustomerStatusLabel(call.status)
+    : "—";
+  const allTicketUpdates = useMemo(() => {
+    void portalTick;
+    return listTicketUpdates(serviceCallId).slice().sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    );
+  }, [serviceCallId, portalTick]);
+  const customerTimeline = useMemo(
+    () => allTicketUpdates.filter((u) => u.visibleToCustomer),
+    [allTicketUpdates],
   );
 
   function show(msg: string) {
@@ -133,6 +161,39 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
       fail(result.error);
       return;
     }
+    const customerVisible = ![
+      "ESCALATED",
+      "DIAGNOSIS",
+      "REPAIR_IN_PROGRESS",
+    ].includes(to);
+    if (customerVisible) {
+      const type =
+        to === "ASSIGNED"
+          ? "TICKET_ASSIGNED"
+          : to === "ACCEPTED"
+            ? "TICKET_ACCEPTED"
+            : to === "EN_ROUTE"
+              ? "TECHNICIAN_TRAVELING"
+              : to === "ON_SITE"
+                ? "TECHNICIAN_ARRIVED"
+                : to === "WAITING_FOR_PARTS"
+                  ? "TICKET_WAITING_FOR_PARTS"
+                  : to === "RESOLVED"
+                    ? "TICKET_RESOLVED"
+                    : to === "CLOSED"
+                      ? "TICKET_CLOSED"
+                      : "TICKET_SCHEDULE_CHANGED";
+      notifyPortalCustomerTicketEvent({
+        customerName: result.call.machine.customerName,
+        type,
+        title: `Service update — ${result.call.ticketNumber}`,
+        message: `Status is now: ${getCustomerStatusLabel(to)}`,
+        ticketId: result.call.id,
+        ticketNumber: result.call.ticketNumber,
+        printerId: result.call.machine.machineId,
+        printerName: result.call.machine.printerModel,
+      });
+    }
     if (to === "RESOLVED" && result.call.resolution.finalMachineStatus === "OPERATIONAL") {
       setMachineStatusOverride({
         machineId: result.call.machine.machineId,
@@ -150,6 +211,15 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
     refresh(result.call);
     show(`Status updated to ${getServiceCallStatusLabel(to)}.`);
     setConfirmAction(null);
+    if (to === "CLOSED" || to === "RESOLVED") {
+      void import("@/lib/automations/client-notify").then((m) =>
+        m.notifyServiceCallClosed({
+          id: result.call.id,
+          status: to,
+          machine: { machineId: result.call.machine.machineId },
+        }),
+      );
+    }
   }
 
   function runPrimary(action: string, to: ServiceCallStatus) {
@@ -225,6 +295,9 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
             </h2>
             <p className="mt-1 text-sm text-slate-400">
               {call.id} · Ticket {call.ticketNumber}
+              {ticketMeta?.mxTicketNumber
+                ? ` · MX ${ticketMeta.mxTicketNumber}`
+                : ""}
             </p>
             <p className="mt-2 text-sm text-slate-300">
               {call.machine.printerModel} · {call.machine.assetTag} ·{" "}
@@ -233,6 +306,28 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
             <p className="mt-1 text-sm text-slate-400">
               Tech: {call.assignment.technician || "Unassigned"}
             </p>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              {portalSubmitted ? (
+                <span className="rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-violet-200">
+                  Portal Submitted
+                </span>
+              ) : null}
+              <span className="rounded-full border border-slate-700 px-2 py-0.5 text-slate-300">
+                Customer sees: {customerStatusPreview}
+              </span>
+              <Link
+                href={`/customers`}
+                className="rounded-full border border-cyan-500/30 px-2 py-0.5 text-cyan-300 hover:underline"
+              >
+                Customer account
+              </Link>
+              <Link
+                href={`/ai-operations/predictive-maintenance/machines/${encodeURIComponent(call.machine.machineId)}`}
+                className="rounded-full border border-cyan-500/30 px-2 py-0.5 text-cyan-300 hover:underline"
+              >
+                Machine profile
+              </Link>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <MatrixStatusBadge
@@ -331,6 +426,13 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
             variant="secondary"
           >
             Open Digital Twin
+          </MatrixButton>
+          <MatrixButton
+            href={`/ai-operations/predictive-maintenance/machines/${call.machine.machineId}`}
+            size="lg"
+            variant="secondary"
+          >
+            Predictive Health
           </MatrixButton>
           <MatrixButton href="/scanner" size="lg" variant="secondary">
             Open Scanner
@@ -514,6 +616,26 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
                 </li>
               ))}
             </ol>
+            {allTicketUpdates.length > 0 ? (
+              <ul className="mt-4 space-y-2 border-t border-slate-800 pt-3 text-xs">
+                {allTicketUpdates.slice(-6).map((u) => (
+                  <li key={u.id} className="flex flex-wrap items-start gap-2">
+                    <span
+                      className={
+                        u.visibleToCustomer
+                          ? "rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-200"
+                          : "rounded border border-slate-600 bg-slate-800 px-1.5 py-0.5 text-slate-400"
+                      }
+                    >
+                      {u.visibleToCustomer ? "Customer visible" : "Internal only"}
+                    </span>
+                    <span className="text-slate-300">
+                      {u.message} · {u.createdAt.slice(0, 19)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </MatrixCard>
         </div>
       )}
@@ -545,6 +667,45 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
               </li>
             ))}
           </ol>
+          {allTicketUpdates.length > 0 ? (
+            <div className="mt-6 border-t border-slate-800 pt-4">
+              <p className="mb-3 text-xs uppercase tracking-wide text-slate-500">
+                Ticket updates · visibility
+              </p>
+              <ol className="space-y-2">
+                {(activityNewestFirst
+                  ? [...allTicketUpdates].reverse()
+                  : allTicketUpdates
+                ).map((u) => (
+                  <li
+                    key={u.id}
+                    className="rounded-lg border border-slate-800 px-3 py-2 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={
+                          u.visibleToCustomer
+                            ? "rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] uppercase text-emerald-200"
+                            : "rounded border border-slate-600 bg-slate-800 px-1.5 py-0.5 text-[10px] uppercase text-slate-400"
+                        }
+                      >
+                        {u.visibleToCustomer
+                          ? "Customer visible"
+                          : "Internal only"}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {u.updateType} · {getCustomerStatusLabel(u.newStatus)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-white">{u.message}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {u.createdBy} · {u.createdAt}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
         </MatrixCard>
       )}
 
@@ -1048,6 +1209,71 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
       )}
 
       {tab === "customer" && (
+        <div className="space-y-4">
+          <MatrixCard title="Customer-visible updates">
+            <p className="mb-3 text-sm text-slate-400">
+              Portal customers see status as{" "}
+              <span className="text-cyan-200">{customerStatusPreview}</span>.
+              Messages posted here appear in the customer timeline (no internal
+              diagnostics or costs).
+            </p>
+            <textarea
+              className={fieldClass + " min-h-[90px]"}
+              value={customerUpdate}
+              onChange={(e) => setCustomerUpdate(e.target.value)}
+              placeholder="Customer-safe status update…"
+              aria-label="Customer-visible update text"
+            />
+            <div className="mt-3">
+              <MatrixButton
+                size="md"
+                variant="primary"
+                onClick={() => {
+                  const result = postCustomerVisibleUpdate({
+                    ticketId: call.id,
+                    message: customerUpdate,
+                    actor: "Matrix User",
+                  });
+                  if (!result.ok) {
+                    fail(result.error);
+                    return;
+                  }
+                  notifyPortalCustomerTicketEvent({
+                    customerName: call.machine.customerName,
+                    type: "CUSTOMER_RESPONSE",
+                    title: `Update on ${call.ticketNumber}`,
+                    message: customerUpdate.trim().slice(0, 160),
+                    ticketId: call.id,
+                    ticketNumber: call.ticketNumber,
+                    printerId: call.machine.machineId,
+                    printerName: call.machine.printerModel,
+                  });
+                  setCustomerUpdate("");
+                  setPortalTick((t) => t + 1);
+                  show("Customer-visible update posted.");
+                }}
+              >
+                Post customer update
+              </MatrixButton>
+            </div>
+            <ul className="mt-4 space-y-2 text-sm text-slate-300">
+              {customerTimeline.length === 0 ? (
+                <li className="text-slate-500">No customer-visible updates yet.</li>
+              ) : (
+                customerTimeline.slice(0, 12).map((u) => (
+                  <li key={u.id} className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+                    <p className="text-xs text-slate-500">
+                      <span className="mr-2 rounded border border-emerald-500/40 px-1.5 py-0.5 text-[10px] uppercase text-emerald-200">
+                        Customer preview
+                      </span>
+                      {u.createdAt} · {u.createdBy}
+                    </p>
+                    <p>{u.message}</p>
+                  </li>
+                ))
+              )}
+            </ul>
+          </MatrixCard>
         <MatrixCard title="Customer confirmation">
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
@@ -1096,6 +1322,7 @@ export default function ServiceCallDetailPanel({ serviceCallId }: Props) {
             {call.customerConfirmation.technicianSignaturePlaceholder}
           </p>
         </MatrixCard>
+        </div>
       )}
 
       {tab === "attachments" && (

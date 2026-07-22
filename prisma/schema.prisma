@@ -1163,12 +1163,32 @@ model AuditLog {
   entityType     String?
   entityId       String?
   payload        String? // JSON before/after snapshot
+  /// Patch 50C-2 — optional investigative taxonomy (nullable for legacy rows)
+  category       String?
+  severity       String?
+  outcome        String?
+  visibility     String?
+  environment    String?
+  requestId      String?
+  correlationId  String?
+  sourceModule   String?
+  sourceRoute    String?
+  httpMethod     String?
+  statusCode     Int?
+  message        String?
+  errorCode      String?
+  durationMs     Int?
   organization   Organization? @relation(fields: [organizationId], references: [id])
   actor          User?         @relation(fields: [actorId], references: [id])
   createdAt      DateTime      @default(now())
 
   @@index([organizationId, createdAt])
   @@index([entityType, entityId])
+  @@index([organizationId, category, createdAt])
+  @@index([organizationId, severity, createdAt])
+  @@index([requestId])
+  @@index([correlationId])
+  @@index([action, createdAt])
 }
 
 // -----------------------------------------------------------------------------
@@ -1742,6 +1762,101 @@ model PortalAuditEntry {
   @@index([customerId, occurredAt])
   @@index([membershipId])
   @@index([action])
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 51B — Enterprise Customer Portal expansions
+// -----------------------------------------------------------------------------
+
+model PortalConfiguration {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  settingsJson   String
+  updatedByUserId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PortalOnboardingState {
+  id              String   @id @default(cuid())
+  membershipId    String   @unique
+  completedAt     DateTime?
+  stepsJson       String?
+  termsAcceptedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([membershipId])
+}
+
+model CustomerChangeRequest {
+  id             String    @id @default(cuid())
+  organizationId String?
+  customerId     String
+  membershipId   String
+  requestType    String
+  payloadJson    String
+  status         String    @default("PENDING")
+  reviewNote     String?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([customerId, status])
+  @@index([membershipId])
+}
+
+model AnnouncementAcknowledgment {
+  id             String   @id @default(cuid())
+  announcementId String
+  membershipId   String
+  acknowledgedAt DateTime @default(now())
+
+  @@unique([announcementId, membershipId])
+  @@index([membershipId])
+}
+
+model PortalPartsRequest {
+  id                   String    @id @default(cuid())
+  customerId           String
+  membershipId         String
+  requestNumber        String
+  machineId            String?
+  locationId           String?
+  requestType          String
+  description          String
+  quantity             Int       @default(1)
+  businessReason       String?
+  urgency              String    @default("NORMAL")
+  serviceRequestId     String?
+  shippingContact      String?
+  shippingAddress      String?
+  status               String    @default("SUBMITTED")
+  purchaseRequestId    String?
+  approvalRequestId    String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  completedAt          DateTime?
+
+  @@unique([customerId, requestNumber])
+  @@index([customerId, status])
+  @@index([membershipId])
+}
+
+model PortalNotificationPreference {
+  id                   String   @id @default(cuid())
+  membershipId         String   @unique
+  inAppEnabled         Boolean  @default(true)
+  emailEnabled         Boolean  @default(false)
+  smsEnabled           Boolean  @default(false)
+  serviceUpdates       Boolean  @default(true)
+  pmReminders          Boolean  @default(true)
+  meterReminders       Boolean  @default(true)
+  partsUpdates         Boolean  @default(true)
+  announcements        Boolean  @default(true)
+  updatedAt            DateTime @updatedAt
+  createdAt            DateTime @default(now())
 }
 
 // -----------------------------------------------------------------------------
@@ -2478,4 +2593,1367 @@ model AdminOrganizationProfile {
   updatedByUserId     String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+// ─── Patch 50A — Enterprise Approval Center ─────────────────────────────────
+
+model ApprovalRequestSequence {
+  id             String @id @default(cuid())
+  organizationId String
+  year           Int
+  lastValue      Int    @default(0)
+
+  @@unique([organizationId, year])
+}
+
+model ApprovalRequest {
+  id                     String    @id @default(cuid())
+  organizationId         String
+  requestNumber          String
+  title                  String
+  description            String?
+  businessJustification  String?
+  approvalType           String
+  sourceModule           String?
+  sourceRecordId         String?
+  status                 String    @default("DRAFT")
+  priority               String    @default("NORMAL")
+  requesterUserId        String
+  requesterName          String?
+  requesterDepartmentId  String?
+  currentStepNumber      Int       @default(0)
+  totalSteps             Int       @default(0)
+  assignedApproverUserId String?
+  assignedApproverName   String?
+  requestedAmount        Float?
+  currency               String?   @default("USD")
+  dueAt                  DateTime?
+  submittedAt            DateTime?
+  completedAt            DateTime?
+  cancelledAt            DateTime?
+  escalatedAt            DateTime?
+  archivedAt             DateTime?
+  selectedRuleId         String?
+  customerId             String?
+  machineId              String?
+  serviceCallId          String?
+  partsOrderId           String?
+  version                Int       @default(1)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  steps        ApprovalStep[]
+  decisions    ApprovalDecision[]
+  comments     ApprovalComment[]
+  assignments  ApprovalAssignment[]
+  attachments  ApprovalAttachment[]
+
+  @@unique([organizationId, requestNumber])
+  @@index([organizationId, status])
+  @@index([organizationId, assignedApproverUserId])
+  @@index([organizationId, requesterUserId])
+  @@index([organizationId, approvalType])
+  @@index([organizationId, dueAt])
+  @@index([organizationId, archivedAt])
+}
+
+model ApprovalStep {
+  id                String    @id @default(cuid())
+  approvalRequestId String
+  stepNumber        Int
+  name              String
+  approverType      String    @default("PERMISSION")
+  requiredRoleId    String?
+  requiredPermission String?
+  assignedUserId    String?
+  assignedUserName  String?
+  status            String    @default("WAITING")
+  minimumApprovals  Int       @default(1)
+  approvalsReceived Int       @default(0)
+  dueAt             DateTime?
+  completedAt       DateTime?
+  optional          Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  request     ApprovalRequest    @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  decisions   ApprovalDecision[]
+  assignments ApprovalAssignment[]
+
+  @@unique([approvalRequestId, stepNumber])
+  @@index([approvalRequestId, status])
+}
+
+model ApprovalDecision {
+  id                String   @id @default(cuid())
+  approvalRequestId String
+  approvalStepId    String?
+  decision          String
+  decidedByUserId   String
+  decidedByName     String?
+  decidedByRoleName String?
+  comment           String?
+  signatureHash     String
+  decidedAt         DateTime @default(now())
+  metadata          String?
+  createdAt         DateTime @default(now())
+
+  request ApprovalRequest @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  step    ApprovalStep?   @relation(fields: [approvalStepId], references: [id], onDelete: SetNull)
+
+  @@index([approvalRequestId, decidedAt])
+  @@unique([approvalRequestId, approvalStepId, decidedByUserId, decision])
+}
+
+model ApprovalComment {
+  id                String    @id @default(cuid())
+  approvalRequestId String
+  parentCommentId   String?
+  authorUserId      String
+  authorName        String?
+  authorRole        String?
+  body              String
+  isInternal        Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  request ApprovalRequest  @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  parent  ApprovalComment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: SetNull)
+  replies ApprovalComment[] @relation("CommentReplies")
+
+  @@index([approvalRequestId, createdAt])
+}
+
+model ApprovalAssignment {
+  id                String    @id @default(cuid())
+  approvalRequestId String
+  approvalStepId    String?
+  assignedToUserId  String
+  assignedToName    String?
+  assignedByUserId  String
+  assignedByName    String?
+  assignmentType    String
+  reason            String?
+  startsAt          DateTime  @default(now())
+  endsAt            DateTime?
+  createdAt         DateTime  @default(now())
+
+  request ApprovalRequest @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  step    ApprovalStep?   @relation(fields: [approvalStepId], references: [id], onDelete: SetNull)
+
+  @@index([approvalRequestId])
+}
+
+model ApprovalRule {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  name               String
+  description        String?
+  approvalType       String
+  sourceModule       String?
+  isActive           Boolean  @default(true)
+  priority           Int      @default(100)
+  conditionsJson     String
+  workflowJson       String
+  createdByUserId    String?
+  updatedByUserId    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([organizationId, approvalType, isActive])
+  @@index([organizationId, priority])
+}
+
+model ApprovalAttachment {
+  id                String   @id @default(cuid())
+  approvalRequestId String
+  fileName          String
+  fileUrl           String
+  mimeType          String?
+  fileSize          Int?
+  uploadedByUserId  String
+  createdAt         DateTime @default(now())
+
+  request ApprovalRequest @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+
+  @@index([approvalRequestId])
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 50B — Organization Health
+// -----------------------------------------------------------------------------
+
+model OrganizationHealthSetting {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  settingsJson    String
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model OrganizationHealthSnapshot {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  snapshotDate        DateTime
+  overallScore        Float?
+  classification      String?
+  fleetScore          Float?
+  serviceScore        Float?
+  pmScore             Float?
+  inventoryScore      Float?
+  technicianScore     Float?
+  customerScore       Float?
+  financialScore      Float?
+  securityScore       Float?
+  metricSummary       String?
+  calculationVersion  String
+  createdAt           DateTime @default(now())
+
+  @@unique([organizationId, snapshotDate])
+  @@index([organizationId, snapshotDate])
+}
+
+model OrganizationHealthAlert {
+  id                   String    @id @default(cuid())
+  organizationId       String
+  alertKey             String
+  category             String
+  severity             String
+  title                String
+  description          String
+  evidence             String?
+  sourceType           String?
+  sourceRecordId       String?
+  status               String    @default("OPEN")
+  assignedUserId       String?
+  detectedAt           DateTime  @default(now())
+  dueAt                DateTime?
+  acknowledgedAt       DateTime?
+  acknowledgedByUserId String?
+  resolvedAt           DateTime?
+  resolvedByUserId     String?
+  resolutionNote       String?
+  dismissedAt          DateTime?
+  dismissedByUserId    String?
+  recommendedAction    String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([organizationId, status])
+  @@index([organizationId, severity])
+  @@index([organizationId, category])
+  @@index([organizationId, alertKey, status])
+  @@index([assignedUserId])
+  @@index([detectedAt])
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 50C-1 — Data Quality Center
+// -----------------------------------------------------------------------------
+
+model DataQualitySetting {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  settingsJson    String
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model DataQualityRule {
+  id                       String   @id @default(cuid())
+  organizationId           String
+  code                     String
+  name                     String
+  description              String
+  module                   String
+  entityType               String
+  ruleType                 String
+  severity                 String
+  isActive                 Boolean  @default(true)
+  isSystemRule             Boolean  @default(false)
+  configurationJson        String?
+  remediationConfiguration String?
+  schedule                 String?
+  priority                 Int      @default(100)
+  createdByUserId          String?
+  updatedByUserId          String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId, module, isActive])
+}
+
+model DataQualityScan {
+  id                   String    @id @default(cuid())
+  organizationId       String
+  scanType             String
+  status               String
+  modulesJson          String?
+  requestedByUserId    String?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  recordsScanned       Int?
+  issuesFound          Int?
+  criticalIssuesFound  Int?
+  errorsJson           String?
+  calculationVersion   String
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+}
+
+model DataQualityIssue {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  issueKey           String
+  module             String
+  entityType         String
+  entityId           String
+  secondaryEntityId  String?
+  issueType          String
+  severity           String
+  status             String    @default("OPEN")
+  title              String
+  description        String
+  fieldName          String?
+  currentValue       String?
+  expectedValue      String?
+  evidence           String?
+  confidenceScore    Float?
+  ruleId             String?
+  scanId             String?
+  assignedToUserId   String?
+  assignedByUserId   String?
+  detectedAt         DateTime  @default(now())
+  dueAt              DateTime?
+  firstDetectedAt    DateTime  @default(now())
+  lastDetectedAt     DateTime  @default(now())
+  acknowledgedAt     DateTime?
+  resolvedAt         DateTime?
+  resolvedByUserId   String?
+  resolutionMethod   String?
+  resolutionNote     String?
+  dismissedAt        DateTime?
+  dismissedByUserId  String?
+  dismissalReason    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([organizationId, status])
+  @@index([organizationId, severity])
+  @@index([organizationId, issueKey, status])
+  @@index([entityType, entityId])
+  @@index([ruleId, status])
+  @@index([assignedToUserId, status])
+  @@index([firstDetectedAt])
+  @@index([scanId])
+}
+
+model DataMergeHistory {
+  id                       String   @id @default(cuid())
+  organizationId           String
+  entityType               String
+  masterRecordId           String
+  mergedRecordId           String
+  fieldSelectionsJson      String?
+  relationshipSummaryJson  String?
+  performedByUserId        String
+  reason                   String
+  performedAt              DateTime @default(now())
+  rollbackStatus           String   @default("NOT_SUPPORTED")
+  createdAt                DateTime @default(now())
+
+  @@index([organizationId, entityType, performedAt])
+}
+
+model DataQualitySnapshot {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  snapshotDate       DateTime
+  overallScore       Float?
+  classification     String?
+  moduleScoresJson   String?
+  issueCountsJson    String?
+  calculationVersion String
+  createdAt          DateTime @default(now())
+
+  @@unique([organizationId, snapshotDate])
+  @@index([organizationId, snapshotDate])
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 50C-2 — Enterprise System Logs (extends AuditLog; no duplicate audit store)
+// -----------------------------------------------------------------------------
+
+model SystemLogSetting {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  settingsJson    String
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SystemLogRetentionPolicy {
+  id              String   @id @default(cuid())
+  organizationId  String
+  retentionClass  String
+  days            Int
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([organizationId, retentionClass])
+  @@index([organizationId])
+}
+
+model SystemSecurityEventState {
+  id                   String    @id @default(cuid())
+  organizationId       String
+  auditLogId           String    @unique
+  status               String    @default("OPEN")
+  assignedUserId       String?
+  assignedByUserId     String?
+  acknowledgedAt       DateTime?
+  acknowledgedByUserId String?
+  investigatingAt      DateTime?
+  resolvedAt           DateTime?
+  resolvedByUserId     String?
+  resolutionNote       String?
+  dismissedAt          DateTime?
+  dismissedByUserId    String?
+  dismissalReason      String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([organizationId, status])
+  @@index([assignedUserId, status])
+}
+
+model SystemLogAlertRule {
+  id                String   @id @default(cuid())
+  organizationId    String
+  code              String
+  name              String
+  description       String
+  eventType         String
+  threshold         Int      @default(1)
+  windowMinutes     Int      @default(15)
+  severity          String   @default("WARNING")
+  isActive          Boolean  @default(true)
+  isSystemRule      Boolean  @default(true)
+  configurationJson String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+}
+
+// -----------------------------------------------------------------------------
+// AI OPERATIONS CENTER (Patch 51A.1 Part 1) — foundation tables (no LLM yet)
+// Model names use AiOps* to avoid colliding with legacy AIRecommendation / AIConversation.
+// -----------------------------------------------------------------------------
+
+model AiOpsSession {
+  id                   String   @id @default(cuid())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  userId               String
+  sessionName          String
+  status               String   @default("ACTIVE")
+  lastActivity         DateTime @default(now())
+  requestCount         Int      @default(0)
+  averageConfidence    Float    @default(0)
+  averageResponseTime  Float    @default(0)
+  logs                 AiOpsLog[]
+
+  @@index([userId, lastActivity])
+  @@index([status])
+  @@map("ai_sessions")
+}
+
+model AiOpsLog {
+  id             String    @id @default(cuid())
+  createdAt      DateTime  @default(now())
+  userId         String
+  sessionId      String?
+  requestType    String
+  question       String
+  response       String
+  confidence     Float
+  executionTime  Int
+  success        Boolean   @default(true)
+  metadata       String? // JSON
+  session        AiOpsSession? @relation(fields: [sessionId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([requestType, createdAt])
+  @@map("ai_logs")
+}
+
+model AiOpsPrediction {
+  id                 String    @id @default(cuid())
+  createdAt          DateTime  @default(now())
+  predictionType     String
+  title              String
+  description        String
+  confidence         Float
+  priority           String    @default("MEDIUM")
+  status             String    @default("OPEN")
+  recommendedAction  String
+  expiresAt          DateTime?
+
+  @@index([status, priority])
+  @@index([predictionType, createdAt])
+  @@map("ai_predictions")
+}
+
+model AiOpsNotification {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  title      String
+  message    String
+  severity   String   @default("INFO")
+  read       Boolean  @default(false)
+  category   String
+  actionUrl  String?
+
+  @@index([read, createdAt])
+  @@index([category])
+  @@map("ai_notifications")
+}
+
+model AiOpsLearning {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  source            String
+  recordsProcessed  Int      @default(0)
+  status            String   @default("COMPLETED")
+  duration          Int      @default(0)
+  notes             String?
+
+  @@index([status, createdAt])
+  @@map("ai_learning")
+}
+
+model AiOpsMetric {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  metricName  String
+  metricValue Float
+  metricUnit   String
+
+  @@index([metricName, createdAt])
+  @@map("ai_metrics")
+}
+
+model AiOpsRecommendation {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  title        String
+  description  String
+  priority     String   @default("MEDIUM")
+  category     String
+  completed    Boolean  @default(false)
+  confidence   Float
+
+  @@index([completed, priority])
+  @@index([category, createdAt])
+  @@map("ai_recommendations")
+}
+
+// -----------------------------------------------------------------------------
+// AI OPERATIONS CENTER (Patch 51A.1 Part 2) — insights + analysis runs
+// -----------------------------------------------------------------------------
+
+model AiOpsAnalysisRun {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  status             String    @default("QUEUED") // QUEUED|RUNNING|COMPLETED|PARTIALLY_COMPLETED|FAILED|CANCELLED
+  requestedByUserId  String?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  durationMs         Int?
+  recordsAnalyzed    Int       @default(0)
+  recordsSkipped     Int       @default(0)
+  insightsCreated    Int       @default(0)
+  errorSummary       String?
+  analysisVersion    String
+  rulesVersion       String
+  cancelRequested    Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  insights           AiOpsInsight[]
+
+  @@index([organizationId, createdAt])
+  @@index([status, createdAt])
+  @@map("ai_analysis_runs")
+}
+
+model AiOpsInsight {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  analysisRunId         String?
+  insightType           String
+  sourceModule          String
+  title                 String
+  summary               String
+  explanation           String
+  recommendedAction     String
+  severity              String    @default("MEDIUM") // INFO|LOW|MEDIUM|HIGH|CRITICAL
+  confidence            Float
+  status                String    @default("NEW")
+  riskCategory          String    @default("MONITOR") // ACT_NOW|PLAN_NEXT|MONITOR|LOW_PRIORITY
+  supportingEvidence    String? // JSON
+  limitations           String?
+  analysisVersion       String
+  customerId            String?
+  customerName          String?
+  siteId                String?
+  siteName              String?
+  machineId             String?
+  machineLabel          String?
+  serviceCallId         String?
+  pmRecordId            String?
+  inventoryItemId       String?
+  partId                String?
+  dataQualityIssueId    String?
+  relatedRecordHref     String?
+  assignedReviewerId    String?
+  assignedReviewerName  String?
+  reviewNotes           String?
+  dismissalReason       String?
+  resolutionSummary     String?
+  actionTaken           String?
+  followUpDate          DateTime?
+  resolvedAt            DateTime?
+  archivedAt            DateTime?
+  acknowledgedAt        DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  analysisRun           AiOpsAnalysisRun? @relation(fields: [analysisRunId], references: [id])
+  events                AiOpsInsightEvent[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, severity])
+  @@index([organizationId, insightType])
+  @@index([organizationId, sourceModule])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, updatedAt])
+  @@index([assignedReviewerId, status])
+  @@index([customerId])
+  @@index([siteId])
+  @@index([machineId])
+  @@index([serviceCallId])
+  @@index([pmRecordId])
+  @@map("ai_insights")
+}
+
+model AiOpsInsightEvent {
+  id             String   @id @default(cuid())
+  insightId      String
+  actorUserId    String?
+  actorName      String?
+  action         String
+  previousStatus String?
+  newStatus      String?
+  note           String?
+  createdAt      DateTime @default(now())
+  insight        AiOpsInsight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+
+  @@index([insightId, createdAt])
+  @@map("ai_insight_events")
+}
+
+// -----------------------------------------------------------------------------
+// AI OPERATIONS CENTER (Patch 51A.1 Part 3) — Assistant conversations
+// -----------------------------------------------------------------------------
+
+model AiOpsAssistantConversation {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  ownerUserId        String
+  ownerName          String?
+  title              String    @default("New conversation")
+  status             String    @default("ACTIVE") // ACTIVE|ARCHIVED|DELETED
+  contextSummary     String?
+  appliedFilters     String? // JSON
+  relatedEntities    String? // JSON
+  messageCount       Int       @default(0)
+  providerMeta       String? // JSON — safe only
+  usageMeta          String? // JSON — safe only
+  lastMessageAt      DateTime?
+  archivedAt         DateTime?
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  messages           AiOpsAssistantMessage[]
+
+  @@index([ownerUserId, status, updatedAt])
+  @@index([organizationId, status, updatedAt])
+  @@index([lastMessageAt])
+  @@index([createdAt])
+  @@map("ai_assistant_conversations")
+}
+
+model AiOpsAssistantMessage {
+  id                 String   @id @default(cuid())
+  conversationId     String
+  role               String // USER|ASSISTANT|SYSTEM_EVENT|TOOL_RESULT|ERROR
+  content            String
+  requestType        String?
+  queryPlan          String? // JSON snapshot
+  appliedFilters     String? // JSON
+  confidence         Float?
+  retrievalSummary   String?
+  limitations        String?
+  dataBasis          String? // LIVE|CACHED|STORED_ANALYSIS|MIXED
+  answerFormat       String?
+  followUps          String? // JSON string[]
+  errorCode          String?
+  feedbackRating     String?
+  feedbackComment    String?
+  providerMeta       String?
+  usageMeta          String?
+  createdAt          DateTime @default(now())
+  conversation       AiOpsAssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sources            AiOpsAssistantSource[]
+  feedback           AiOpsAssistantFeedback[]
+
+  @@index([conversationId, createdAt])
+  @@map("ai_assistant_messages")
+}
+
+model AiOpsAssistantSource {
+  id              String   @id @default(cuid())
+  messageId       String
+  sourceType      String
+  recordId        String
+  displayLabel    String
+  href            String?
+  fieldSummary    String?
+  timestamp       String?
+  metadata        String? // JSON — permission-safe
+  createdAt       DateTime @default(now())
+  message         AiOpsAssistantMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([sourceType, recordId])
+  @@map("ai_assistant_sources")
+}
+
+model AiOpsAssistantFeedback {
+  id              String   @id @default(cuid())
+  conversationId  String
+  messageId       String
+  userId          String
+  rating          String // HELPFUL|NOT_HELPFUL|INCORRECT|MISSING_INFORMATION|UNSAFE_OR_INAPPROPRIATE
+  comment         String?
+  createdAt       DateTime @default(now())
+  message         AiOpsAssistantMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, createdAt])
+  @@index([userId, createdAt])
+  @@map("ai_assistant_feedback")
+}
+
+// -----------------------------------------------------------------------------
+// AI AUTOMATION FRAMEWORK (Patch 51A.2)
+// -----------------------------------------------------------------------------
+
+model AiOpsAutomationDefinition {
+  id                  String    @id @default(cuid())
+  organizationId      String
+  name                String
+  description         String    @default("")
+  category            String    @default("GENERAL")
+  status              String    @default("DRAFT") // DRAFT|ACTIVE|PAUSED|DISABLED|ARCHIVED
+  triggerType         String // EVENT|SCHEDULE|MANUAL|AI_MONITOR
+  eventType           String?
+  scheduleExpression  String? // cron-like: daily|hourly|every_15m
+  timezone            String?   @default("America/New_York")
+  conditionMode       String    @default("ALL") // ALL|ANY|CUSTOM
+  conditionsJson      String    @default("{}")
+  actionsJson         String    @default("[]")
+  approvalMode        String    @default("NONE") // NONE|BEFORE_RUN|BEFORE_HIGH_IMPACT_ACTION|ALWAYS
+  riskLevel           String    @default("LOW") // LOW|MEDIUM|HIGH|CRITICAL
+  dryRunEnabled       Boolean   @default(true)
+  maxRetries          Int       @default(1)
+  retryDelaySeconds   Int       @default(60)
+  timeoutSeconds      Int       @default(120)
+  failurePolicy       String    @default("STOP") // STOP|CONTINUE|CONTINUE_OPTIONAL
+  lastRunAt           DateTime?
+  nextRunAt           DateTime?
+  lastRunStatus       String?
+  consecutiveFailures Int       @default(0)
+  createdById         String?
+  updatedById         String?
+  archivedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  executions          AiOpsAutomationExecution[]
+
+  @@index([organizationId, status])
+  @@index([triggerType, status])
+  @@index([eventType, status])
+  @@index([nextRunAt, status])
+  @@map("ai_automation_definitions")
+}
+
+model AiOpsAutomationExecution {
+  id                   String    @id @default(cuid())
+  organizationId       String
+  automationId         String
+  triggerSource        String
+  triggerReferenceId   String?
+  status               String    @default("QUEUED")
+  startedAt            DateTime?
+  completedAt          DateTime?
+  inputJson            String?
+  conditionResultsJson String?
+  actionResultsJson    String?
+  errorJson            String?
+  attemptNumber        Int       @default(1)
+  idempotencyKey       String
+  initiatedById        String?
+  approvedById         String?
+  approvedAt           DateTime?
+  dryRun               Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  automation           AiOpsAutomationDefinition @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  approvals            AiOpsAutomationApproval[]
+
+  @@unique([idempotencyKey])
+  @@index([automationId, createdAt])
+  @@index([organizationId, status, createdAt])
+  @@index([status, createdAt])
+  @@map("ai_automation_executions")
+}
+
+model AiOpsAutomationApproval {
+  id             String    @id @default(cuid())
+  executionId    String
+  status         String    @default("PENDING") // PENDING|APPROVED|REJECTED|EXPIRED|CANCELLED
+  requestedById  String?
+  assignedRole   String?
+  assignedUserId String?
+  reason         String
+  decisionNote   String?
+  decidedById    String?
+  decidedAt      DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  execution      AiOpsAutomationExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([executionId])
+  @@map("ai_automation_approvals")
+}
+
+model AiOpsAutomationTemplate {
+  id               String   @id @default(cuid())
+  name             String
+  description      String
+  category         String
+  icon             String   @default("zap")
+  definitionJson   String
+  isSystemTemplate Boolean  @default(true)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([category, isActive])
+  @@map("ai_automation_templates")
+}
+
+model AiOpsAutomationEvent {
+  id           String    @id @default(cuid())
+  organizationId String  @default("org-sfx")
+  eventType    String
+  entityType   String
+  entityId     String
+  payloadJson  String
+  status       String    @default("PENDING") // PENDING|PROCESSING|PROCESSED|FAILED
+  availableAt  DateTime  @default(now())
+  processedAt  DateTime?
+  attempts     Int       @default(0)
+  lastError    String?
+  createdAt    DateTime  @default(now())
+
+  @@index([status, availableAt])
+  @@index([eventType, createdAt])
+  @@index([entityType, entityId])
+  @@map("ai_automation_events")
+}
+
+model AiOpsAutomationSetting {
+  id                              String   @id @default(cuid())
+  organizationId                  String   @unique
+  automationEnabled               Boolean  @default(true)
+  allowAiConditions               Boolean  @default(true)
+  defaultApprovalMode             String   @default("BEFORE_HIGH_IMPACT_ACTION")
+  defaultMaxRetries               Int      @default(1)
+  defaultTimeoutSeconds           Int      @default(120)
+  executionRetentionDays          Int      @default(90)
+  maxConcurrentRuns               Int      @default(5)
+  highImpactActionsRequireApproval Boolean @default(true)
+  autoPauseFailureThreshold       Int      @default(5)
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  @@map("ai_automation_settings")
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 51A.3 — Predictive Maintenance Intelligence
+// Explainable scoring + forecasts; extends PM / AI Ops / automations (no second PM module).
+// -----------------------------------------------------------------------------
+
+model MachineHealthSnapshot {
+  id                              String    @id @default(cuid())
+  organizationId                  String    @default("org-sfx")
+  machineId                       String
+  healthScore                     Float
+  riskLevel                       String // LOW|MODERATE|HIGH|CRITICAL|UNKNOWN
+  failureRiskScore                Float     @default(0)
+  pmUrgencyScore                  Float     @default(0)
+  usageStressScore                Float     @default(0)
+  repeatIssueScore                Float     @default(0)
+  downtimeRiskScore               Float     @default(0)
+  dataQualityScore                Float     @default(0)
+  confidenceScore                 Float     @default(0)
+  predictedMaintenanceDate        DateTime?
+  predictedMaintenanceWindowStart DateTime?
+  predictedMaintenanceWindowEnd   DateTime?
+  primaryRiskReason               String?
+  riskFactorsJson                 String    @default("[]")
+  recommendationsJson             String    @default("[]")
+  inputSummaryJson                String    @default("{}")
+  scoringVersion                  String
+  aiExplanationVersion            String?
+  aiExplanationJson               String?
+  generatedAt                     DateTime  @default(now())
+  expiresAt                       DateTime?
+  createdAt                       DateTime  @default(now())
+  runId                           String?
+
+  recommendations PredictiveMaintenanceRecommendation[]
+  alerts          PredictiveRiskAlert[]
+  run             PredictiveMaintenanceRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([machineId, generatedAt])
+  @@index([organizationId, riskLevel])
+  @@index([generatedAt])
+  @@index([predictedMaintenanceDate])
+  @@map("machine_health_snapshots")
+}
+
+model PredictiveMaintenanceRecommendation {
+  id                String    @id @default(cuid())
+  organizationId    String    @default("org-sfx")
+  machineId         String
+  healthSnapshotId  String
+  recommendationType String // INSPECT|SCHEDULE_PM|EXPEDITE_PM|...
+  priority          String    @default("NORMAL") // LOW|NORMAL|HIGH|URGENT
+  title             String
+  description       String
+  reason            String
+  confidenceScore   Float     @default(0)
+  status            String    @default("OPEN") // OPEN|ACKNOWLEDGED|ACCEPTED|DISMISSED|COMPLETED|EXPIRED
+  assignedUserId    String?
+  acknowledgedById  String?
+  acknowledgedAt    DateTime?
+  dismissedById     String?
+  dismissedAt       DateTime?
+  dismissalReason   String?
+  completedAt       DateTime?
+  relatedEntityType String?
+  relatedEntityId   String?
+  dedupeKey         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  healthSnapshot MachineHealthSnapshot @relation(fields: [healthSnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, priority])
+  @@index([machineId, status])
+  @@index([healthSnapshotId])
+  @@index([dedupeKey, status])
+  @@map("predictive_maintenance_recommendations")
+}
+
+model PredictiveMaintenanceRun {
+  id                     String    @id @default(cuid())
+  organizationId         String    @default("org-sfx")
+  runType                String // MANUAL|SCHEDULED|EVENT_TRIGGERED|BACKFILL
+  status                 String    @default("QUEUED") // QUEUED|RUNNING|SUCCEEDED|PARTIAL|FAILED|CANCELLED
+  scopeJson              String    @default("{}")
+  machinesEvaluated      Int       @default(0)
+  recommendationsCreated Int       @default(0)
+  alertsCreated          Int       @default(0)
+  errorsCount            Int       @default(0)
+  scoringVersion         String
+  startedAt              DateTime  @default(now())
+  completedAt            DateTime?
+  initiatedById          String?
+  errorJson              String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  snapshots MachineHealthSnapshot[]
+
+  @@index([organizationId, startedAt])
+  @@index([status, startedAt])
+  @@map("predictive_maintenance_runs")
+}
+
+model PredictiveRiskAlert {
+  id               String    @id @default(cuid())
+  organizationId   String    @default("org-sfx")
+  machineId        String
+  healthSnapshotId String?
+  alertType        String
+  severity         String // INFO|WARNING|HIGH|CRITICAL
+  title            String
+  message          String
+  status           String    @default("OPEN") // OPEN|ACKNOWLEDGED|RESOLVED|DISMISSED
+  dedupeKey        String
+  openedAt         DateTime  @default(now())
+  acknowledgedById String?
+  acknowledgedAt   DateTime?
+  resolvedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  healthSnapshot MachineHealthSnapshot? @relation(fields: [healthSnapshotId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, dedupeKey, status])
+  @@index([organizationId, status, severity])
+  @@index([machineId, status])
+  @@map("predictive_risk_alerts")
+}
+
+model PredictiveMaintenanceSetting {
+  id                                  String   @id @default(cuid())
+  organizationId                      String   @unique
+  enabled                             Boolean  @default(true)
+  scheduledEvaluationEnabled          Boolean  @default(false)
+  evaluationFrequency                 String   @default("daily")
+  healthScoreWarningThreshold         Float    @default(70)
+  healthScoreCriticalThreshold        Float    @default(40)
+  pmDueSoonDays                       Int      @default(14)
+  staleMeterDays                      Int      @default(45)
+  repeatFailureLookbackDays           Int      @default(45)
+  repeatFailureThreshold              Int      @default(3)
+  downtimeLookbackDays                Int      @default(90)
+  usageSpikePercent                   Float    @default(40)
+  minimumDataQualityScore             Float    @default(40)
+  minimumConfidenceForAlert           Float    @default(50)
+  autoCreateRecommendations           Boolean  @default(true)
+  autoCreateInternalAlerts            Boolean  @default(true)
+  requireApprovalForServiceCallCreation Boolean @default(true)
+  retentionDays                       Int      @default(180)
+  scoringVersion                      String   @default("pm-pred-v1")
+  createdAt                           DateTime @default(now())
+  updatedAt                           DateTime @updatedAt
+
+  @@map("predictive_maintenance_settings")
+}
+
+model PredictiveScoringProfile {
+  id            String   @id @default(cuid())
+  organizationId String  @default("org-sfx")
+  name          String
+  description   String   @default("")
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  machineModel  String?
+  weightsJson   String   @default("{}")
+  thresholdsJson String  @default("{}")
+  version       String   @default("1")
+  createdById   String?
+  updatedById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([organizationId, isActive])
+  @@index([organizationId, isDefault])
+  @@map("predictive_scoring_profiles")
+}
+
+model PredictiveOutcomeLink {
+  id               String   @id @default(cuid())
+  organizationId   String   @default("org-sfx")
+  healthSnapshotId String?
+  recommendationId String?
+  machineId        String
+  outcomeType      String // PM_COMPLETED|SERVICE_CALL_CREATED|EMERGENCY_REPAIR|REPEAT_ISSUE|DOWNTIME|RECOMMENDATION_ACCEPTED|RECOMMENDATION_DISMISSED
+  relatedEntityType String?
+  relatedEntityId  String?
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  @@index([organizationId, machineId, createdAt])
+  @@index([outcomeType, createdAt])
+  @@map("predictive_outcome_links")
+}
+
+model PredictiveAuditEvent {
+  id             String   @id @default(cuid())
+  organizationId String   @default("org-sfx")
+  action         String
+  entityType     String?
+  entityId       String?
+  actorUserId    String?
+  payloadJson    String   @default("{}")
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([action, createdAt])
+  @@map("predictive_audit_events")
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 51A.4 — Enterprise Decision Engine
+// Ranked, explainable recommendations with human approval. Reuses AI Ops,
+// automations, predictive maintenance — does not duplicate those systems.
+// -----------------------------------------------------------------------------
+
+model DecisionRecommendation {
+  id                      String    @id @default(cuid())
+  organizationId          String    @default("org-sfx")
+  decisionType            String
+  title                   String
+  summary                 String
+  detailedReasoning       String    @default("")
+  sourceType              String
+  sourceId                String?
+  fingerprint             String
+  customerId              String?
+  siteId                  String?
+  machineId               String?
+  serviceCallId           String?
+  preventiveMaintenanceId String?
+  technicianId            String?
+  partId                  String?
+  inventoryLocationId     String?
+  priority                String    @default("MEDIUM") // CRITICAL|HIGH|MEDIUM|LOW|INFORMATIONAL
+  status                  String    @default("NEW")
+  confidenceScore         Float     @default(0)
+  riskScore               Float     @default(0)
+  urgencyScore            Float     @default(0)
+  businessImpactScore     Float     @default(0)
+  overallDecisionScore    Float     @default(0)
+  estimatedDowntimeMinutes Int?
+  estimatedLaborMinutes   Int?
+  estimatedCost           Float?
+  estimatedCostAvoidance  Float?
+  slaImpact               String?
+  recommendedAction       String
+  alternativeActionsJson  String    @default("[]")
+  evidenceSnapshotJson    String    @default("{}")
+  highImpact              Boolean   @default(false)
+  rulesVersion            String    @default("decision-v1")
+  aiProvider              String?
+  aiModel                 String?
+  aiExplanationVersion    String?
+  aiExplanationJson       String?
+  assignedToUserId        String?
+  dueAt                   DateTime?
+  reviewedAt              DateTime?
+  reviewedBy              String?
+  approvedAt              DateTime?
+  approvedBy              String?
+  rejectedAt              DateTime?
+  rejectedBy              String?
+  rejectionReason         String?
+  deferredUntil           DateTime?
+  completedAt             DateTime?
+  completedBy             String?
+  completionNotes         String?
+  supersededById          String?
+  usefulRating            Int?
+  outcomeUseful           Boolean?
+  outcomeConfirmed        Boolean?
+  outcomeDowntimeAvoided  Boolean?
+  outcomeActualLaborMinutes Int?
+  outcomeActualCost       Float?
+  outcomeFeedbackJson     String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  history DecisionHistoryEvent[]
+
+  @@index([organizationId, fingerprint, status])
+  @@index([organizationId, status, priority])
+  @@index([organizationId, decisionType, createdAt])
+  @@index([machineId, status])
+  @@index([assignedToUserId, status])
+  @@index([dueAt])
+  @@index([overallDecisionScore])
+  @@map("decision_recommendations")
+}
+
+model DecisionHistoryEvent {
+  id             String   @id @default(cuid())
+  organizationId String   @default("org-sfx")
+  decisionId     String
+  action         String
+  fromStatus     String?
+  toStatus       String?
+  actorUserId    String?
+  actorName      String?
+  reason         String?
+  notes          String?
+  metadataJson   String   @default("{}")
+  createdAt      DateTime @default(now())
+
+  decision DecisionRecommendation @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  @@index([decisionId, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("decision_history_events")
+}
+
+model DecisionEngineSetting {
+  id                         String   @id @default(cuid())
+  organizationId             String   @unique
+  enabled                    Boolean  @default(true)
+  scheduledRefreshEnabled    Boolean  @default(false)
+  riskWeight                 Float    @default(0.35)
+  urgencyWeight              Float    @default(0.25)
+  businessImpactWeight       Float    @default(0.20)
+  slaWeight                  Float    @default(0.10)
+  confidenceWeight           Float    @default(0.10)
+  highImpactRequiresApproval Boolean  @default(true)
+  autoExpireDays             Int      @default(30)
+  rulesVersion               String   @default("decision-v1")
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  @@map("decision_engine_settings")
+}
+
+// -----------------------------------------------------------------------------
+// PATCH 51A.5 Part 3 — Executive Reporting schedules & cache
+// -----------------------------------------------------------------------------
+
+model ExecutiveReportSchedule {
+  id             String    @id @default(cuid())
+  organizationId String    @default("org-sfx")
+  name           String
+  period         String // DAILY|WEEKLY|MONTHLY
+  format         String    @default("CSV") // CSV|EXCEL|PDF
+  enabled        Boolean   @default(true)
+  recipientsJson String    @default("[]")
+  createdById    String?
+  createdByName  String?
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  /// America/New_York etc. — used for next-run bump documentation; runner uses server local clock.
+  timezone       String    @default("America/New_York")
+  runHour        Int       @default(6)
+  /// REPORT | BRIEFING | KPI_REFRESH | ALERT_REFRESH | CACHE_REFRESH
+  jobType        String    @default("REPORT")
+  filtersJson    String    @default("{}")
+  lastResult     String?
+  failureMessage String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([organizationId, enabled])
+  @@index([nextRunAt])
+  @@map("executive_report_schedules")
+}
+
+model ExecutiveReportCache {
+  id             String   @id @default(cuid())
+  organizationId String   @default("org-sfx")
+  cacheKey       String
+  payloadJson    String
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, cacheKey])
+  @@index([expiresAt])
+  @@map("executive_report_cache")
+}
+
+model ExecutiveReportConfig {
+  id             String   @id @default(cuid())
+  organizationId String   @default("org-sfx")
+  name           String
+  period         String   @default("WEEKLY")
+  format         String   @default("CSV")
+  filtersJson    String   @default("{}")
+  sectionsJson   String   @default("[]")
+  createdById    String?
+  createdByName  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, updatedAt])
+  @@map("executive_report_configs")
+}
+
+model ExecutiveReportHistory {
+  id             String   @id @default(cuid())
+  organizationId String   @default("org-sfx")
+  period         String
+  format         String
+  title          String
+  filtersJson    String   @default("{}")
+  summaryJson    String   @default("{}")
+  filename       String?
+  createdById    String?
+  createdByName  String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@map("executive_report_history")
+}
+
+/// Executive Action Center inbox — consolidates risks from existing Matrix modules (not a second engine).
+model ExecutiveAlert {
+  id                   String    @id @default(cuid())
+  organizationId       String    @default("org-sfx")
+  alertKey             String
+  category             String
+  severity             String // CRITICAL|HIGH|MEDIUM|LOW|INFO
+  title                String
+  explanation          String
+  entityType           String?
+  entityId             String?
+  entityLabel          String?
+  href                 String?
+  recommendedAction    String?
+  status               String    @default("OPEN") // OPEN|ACKNOWLEDGED|RESOLVED|DISMISSED
+  ownerId              String?
+  ownerName            String?
+  sourceType           String?
+  sourceRecordId       String?
+  detectedAt           DateTime  @default(now())
+  acknowledgedAt       DateTime?
+  acknowledgedByUserId String?
+  resolvedAt           DateTime?
+  resolvedByUserId     String?
+  resolutionNote       String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([organizationId, alertKey, status])
+  @@index([organizationId, status, severity])
+  @@index([organizationId, category])
+  @@index([detectedAt])
+  @@map("executive_alerts")
 }

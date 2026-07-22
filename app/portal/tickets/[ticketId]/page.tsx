@@ -25,6 +25,7 @@ export default function PortalTicketDetailPage({
   const [signature, setSignature] = useState("");
   const [notice, setNotice] = useState("");
   const [rating, setRating] = useState(5);
+  const [uploading, setUploading] = useState(false);
 
   const detail = useMemo(() => {
     void tick;
@@ -88,12 +89,22 @@ export default function PortalTicketDetailPage({
           <ol className="space-y-2 border-l border-slate-700 pl-4 text-sm">
             {detail.activity.map((a, i) => (
               <li key={i}>
-                <p className="text-white">{a.label}</p>
+                <p className="text-white">
+                  {a.label}
+                  {a.code ? (
+                    <span className="ml-2 text-[10px] uppercase text-slate-500">
+                      {a.code}
+                    </span>
+                  ) : null}
+                </p>
                 <p className="text-xs text-slate-400">
                   {a.at.slice(0, 19)} — {a.message}
                 </p>
               </li>
             ))}
+            {detail.activity.length === 0 ? (
+              <li className="text-slate-400">No customer-visible updates yet.</li>
+            ) : null}
           </ol>
         </MatrixCard>
       </div>
@@ -115,19 +126,63 @@ export default function PortalTicketDetailPage({
           className="mb-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
           placeholder="Add a message for the service team…"
         />
-        <MatrixButton
-          type="button"
-          variant="primary"
-          size="md"
-          onClick={() => {
-            const r = addPortalMessage({ ticketId, body: message });
-            setNotice(r.ok ? "Message sent" : r.error ?? "Failed");
-            setMessage("");
-            setTick((x) => x + 1);
-          }}
-        >
-          Send message
-        </MatrixButton>
+        <div className="flex flex-wrap items-center gap-3">
+          <MatrixButton
+            type="button"
+            variant="primary"
+            size="md"
+            onClick={() => {
+              const r = addPortalMessage({ ticketId, body: message });
+              setNotice(r.ok ? "Message sent" : r.error ?? "Failed");
+              setMessage("");
+              setTick((x) => x + 1);
+            }}
+          >
+            Send message
+          </MatrixButton>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+            <span className="rounded-lg border border-slate-600 px-3 py-2 hover:border-cyan-500">
+              {uploading ? "Uploading…" : "Attach file"}
+            </span>
+            <input
+              type="file"
+              className="sr-only"
+              accept="image/jpeg,image/png,image/webp,application/pdf,text/plain"
+              disabled={uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                void (async () => {
+                  setUploading(true);
+                  try {
+                    const form = new FormData();
+                    form.append("file", file);
+                    if (message.trim()) form.append("caption", message.trim());
+                    const res = await fetch(
+                      `/api/portal/service-requests/${ticketId}/attachments`,
+                      { method: "POST", body: form },
+                    );
+                    const json = await res.json();
+                    setNotice(
+                      json.ok
+                        ? `Uploaded ${json.attachment?.fileName ?? file.name}`
+                        : (json.error ?? "Upload failed"),
+                    );
+                    if (json.ok) {
+                      setMessage("");
+                      setTick((x) => x + 1);
+                    }
+                  } catch {
+                    setNotice("Upload failed");
+                  } finally {
+                    setUploading(false);
+                  }
+                })();
+              }}
+            />
+          </label>
+        </div>
       </MatrixCard>
 
       <div className="grid gap-6 lg:grid-cols-2">

@@ -1,3 +1,9 @@
+/**
+ * Client-safe Customer Portal exports.
+ * Server-only modules (Prisma, meters, parts, contacts, enterprise, config)
+ * must be imported from their dedicated paths — never re-exported here.
+ */
+
 export type * from "./types";
 
 export {
@@ -15,10 +21,14 @@ export {
 export {
   getCustomerActivityLabel,
   getCustomerStatusLabel,
+  getCustomerStatusCodeLabel,
+  mapInternalStatusToCustomer,
+  buildCustomerVisibleTimeline,
   listCustomerStatusMappings,
   resetCustomerStatusLabelOverrides,
   setCustomerStatusLabelOverrides,
 } from "./status-map";
+export type { CustomerServiceStatus } from "./status-map";
 
 export {
   checkRateLimit,
@@ -67,3 +77,12 @@ export {
   submitPortalFeedback,
   updatePortalProfile,
 } from "./repository";
+
+export {
+  serializePortalDocument,
+  serializePortalEquipment,
+  serializePortalTicket,
+  assertNoInternalLeak,
+  mapPartsStatusForPortal,
+  mapPmStatusForPortal,
+} from "./serializers";

@@ -13,6 +13,36 @@ import { getRelationshipImpact } from "./relationship-impact";
 import { PERMANENT_DELETE_ENABLED_BY_DEFAULT } from "./types";
 import type { AdminRecordType } from "./types";
 import { getDeletionReasonLabel } from "./deletion-reasons";
+import {
+  evaluatePermanentDelete as evaluatePermanentDeleteForRecord,
+  previewPermanentDeletion,
+} from "./permanent-delete";
+
+export {
+  previewPermanentDeletion,
+  permanentlyDeleteAdminRecord,
+} from "./permanent-delete";
+export type {
+  DeletionPreviewResult,
+  PermanentDeletePreview,
+} from "./permanent-delete";
+
+/** Single-arg form remains blocked for safety; pass recordId for eligibility preview. */
+export function evaluatePermanentDelete(
+  recordType: AdminRecordType,
+  recordId?: string,
+):
+  | { ok: true; preview: import("./permanent-delete").PermanentDeletePreview }
+  | { ok: false; error: string } {
+  if (!recordId) {
+    return {
+      ok: false,
+      error:
+        "Permanent deletion is restricted. Select a specific record to preview eligibility. Records with linked business history must be archived instead.",
+    };
+  }
+  return evaluatePermanentDeleteForRecord(recordType, recordId);
+}
 
 export type DeletedRecordRow = {
   recordType: AdminRecordType;
@@ -195,17 +225,5 @@ export function listDeletedRecords(input: {
     total,
     page,
     pageSize,
-  };
-}
-
-export function evaluatePermanentDelete(recordType: AdminRecordType): {
-  ok: false;
-  error: string;
-} {
-  void recordType;
-  return {
-    ok: false,
-    error:
-      "Permanent deletion is disabled by default. Soft-deleted records are retained to preserve service, inventory, financial, warranty, compliance, and audit integrity.",
   };
 }

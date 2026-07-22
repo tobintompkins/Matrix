@@ -2,9 +2,11 @@
  * Patch 48 — buildMatrixAssistContext
  * Includes only fields needed for the current task; strips contact PII.
  * Treats free-text notes as untrusted reference data (prompt-injection safe).
+ * Supports Standalone Mode when no valid service call / machine is linked.
  */
 
 import { listServiceCalls, getServiceCall } from "@/lib/service-calls";
+import type { ServiceCall } from "@/lib/service-calls";
 import { getDigitalTwinMachine } from "@/lib/digital-twin";
 import { isMachineVisibleInOperations } from "@/lib/admin/data/machines";
 import type { MatrixAssistContext } from "./types";
@@ -24,10 +26,40 @@ function sanitizeUntrusted(text: string | undefined | null): string | undefined 
   return t.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ");
 }
 
+/**
+ * Resolve a service call by id, work-order number, or ticket number.
+ * Returns undefined when no matching active call exists (Standalone Mode fallback).
+ */
+export function resolveServiceCallForAssist(
+  serviceCallId: string | null | undefined,
+): ServiceCall | undefined {
+  const raw = serviceCallId?.trim();
+  if (!raw) return undefined;
+  const byIdOrWo = getServiceCall(raw);
+  if (byIdOrWo) {
+    if (byIdOrWo.recordState === "DELETED" || byIdOrWo.deletedAt) {
+      return undefined;
+    }
+    return byIdOrWo;
+  }
+  const normalized = raw.toUpperCase();
+  const byTicket = listServiceCalls().find(
+    (c) => c.ticketNumber.toUpperCase() === normalized,
+  );
+  if (!byTicket || byTicket.recordState === "DELETED" || byTicket.deletedAt) {
+    return undefined;
+  }
+  return byTicket;
+}
+
 export type BuildContextInput = {
   serviceCallId?: string | null;
   machineId?: string | null;
   technicianObservations?: string | null;
+  /** Standalone Mode — technician-entered model when no linked call/machine */
+  modelHint?: string | null;
+  /** Standalone Mode — technician-entered symptom / reported issue */
+  reportedSymptom?: string | null;
   /** When false, omit inventory-adjacent history details already not present */
   includeServiceHistory?: boolean;
 };
@@ -35,6 +67,7 @@ export type BuildContextInput = {
 /**
  * Builds a permission-trimmed context object for Matrix Assist.
  * Caller must enforce route/record authorization before invoking.
+ * Unknown serviceCallId values are ignored (Standalone Mode) — never throw.
  */
 export function buildMatrixAssistContext(
   input: BuildContextInput,
@@ -59,46 +92,40 @@ export function buildMatrixAssistContext(
   };
 
   let machineId = input.machineId?.trim() || undefined;
-  const serviceCallId = input.serviceCallId?.trim() || undefined;
+  const call = resolveServiceCallForAssist(input.serviceCallId);
 
-  if (serviceCallId) {
-    const call = getServiceCall(serviceCallId);
-    if (call && (call.recordState === "DELETED" || call.deletedAt)) {
-      // Soft-deleted calls are excluded from active Matrix Assist context.
-      // Authorized review remains available from Deleted Records.
-    } else if (call) {
-      context.serviceCallId = call.id;
-      context.workOrderNumber = call.workOrderNumber;
-      context.customerName = call.machine.customerName;
-      context.siteOrLocation = call.machine.siteName || call.machine.machineLocation;
-      context.machineId = call.machine.machineId;
-      context.printerModel = call.machine.printerModel;
-      context.serialNumber = call.machine.serialNumber;
-      context.assetTag = call.machine.assetTag;
-      context.reportedIssue = sanitizeUntrusted(call.problem.issueTitle);
-      context.priority = call.priority;
-      context.status = call.status;
-      context.assignedTechnician = call.assignment.technician ?? undefined;
-      context.recentMeter = call.machine.currentMeterCount ?? null;
-      machineId = machineId || call.machine.machineId;
+  if (call) {
+    context.serviceCallId = call.id;
+    context.workOrderNumber = call.workOrderNumber;
+    context.customerName = call.machine.customerName;
+    context.siteOrLocation = call.machine.siteName || call.machine.machineLocation;
+    context.machineId = call.machine.machineId;
+    context.printerModel = call.machine.printerModel;
+    context.serialNumber = call.machine.serialNumber;
+    context.assetTag = call.machine.assetTag;
+    context.reportedIssue = sanitizeUntrusted(call.problem.issueTitle);
+    context.priority = call.priority;
+    context.status = call.status;
+    context.assignedTechnician = call.assignment.technician ?? undefined;
+    context.recentMeter = call.machine.currentMeterCount ?? null;
+    machineId = machineId || call.machine.machineId;
 
-      if (call.problem.symptoms) {
-        const symptom = sanitizeUntrusted(call.problem.symptoms);
-        if (symptom) context.previousSymptoms.push(symptom);
+    if (call.problem.symptoms) {
+      const symptom = sanitizeUntrusted(call.problem.symptoms);
+      if (symptom) context.previousSymptoms.push(symptom);
+    }
+    if (call.problem.errorCode) {
+      context.knownAlerts.push(`Error code: ${call.problem.errorCode}`);
+    }
+    for (const part of call.parts ?? []) {
+      if (part.used || part.orderStatus === "INSTALLED") {
+        context.recentlyReplacedParts.push(
+          `${part.partNumber} — ${part.description}`,
+        );
       }
-      if (call.problem.errorCode) {
-        context.knownAlerts.push(`Error code: ${call.problem.errorCode}`);
-      }
-      for (const part of call.parts ?? []) {
-        if (part.used || part.orderStatus === "INSTALLED") {
-          context.recentlyReplacedParts.push(
-            `${part.partNumber} — ${part.description}`,
-          );
-        }
-      }
-      if (call.resolution?.followUpRequired) {
-        context.openPmNotes.push("Follow-up required on this service call.");
-      }
+    }
+    if (call.resolution?.followUpRequired) {
+      context.openPmNotes.push("Follow-up required on this service call.");
     }
   }
 
@@ -107,32 +134,48 @@ export function buildMatrixAssistContext(
     if (!isMachineVisibleInOperations(machineId)) {
       // Soft-deleted / archived machines are excluded from active Assist context.
     } else {
-    const twin = getDigitalTwinMachine(machineId);
-    if (twin) {
-      context.printerModel = context.printerModel || twin.identity.printerModel;
-      context.serialNumber = context.serialNumber || twin.identity.serialNumber;
-      context.assetTag = context.assetTag || twin.identity.assetTag;
-      context.customerName = context.customerName || twin.location.customerName;
-      context.siteOrLocation =
-        context.siteOrLocation || twin.location.siteName;
-      if (twin.operational.status === "DOWN") {
-        context.knownAlerts.push("Digital twin status: DOWN");
+      const twin = getDigitalTwinMachine(machineId);
+      if (twin) {
+        context.printerModel = context.printerModel || twin.identity.printerModel;
+        context.serialNumber = context.serialNumber || twin.identity.serialNumber;
+        context.assetTag = context.assetTag || twin.identity.assetTag;
+        context.customerName = context.customerName || twin.location.customerName;
+        context.siteOrLocation =
+          context.siteOrLocation || twin.location.siteName;
+        if (twin.operational.status === "DOWN") {
+          context.knownAlerts.push("Digital twin status: DOWN");
+        }
+        for (const alert of twin.alerts.filter((a) => !a.resolved).slice(0, 5)) {
+          context.knownAlerts.push(
+            sanitizeUntrusted(alert.description || alert.title) ?? "Machine alert",
+          );
+        }
+        for (const part of twin.parts.recentPartsReplaced.slice(0, 5)) {
+          context.recentlyReplacedParts.push(
+            `${part.partNumber} — ${part.partName}`,
+          );
+        }
       }
-      for (const alert of twin.alerts.filter((a) => !a.resolved).slice(0, 5)) {
-        context.knownAlerts.push(
-          sanitizeUntrusted(alert.description || alert.title) ?? "Machine alert",
-        );
-      }
-      for (const part of twin.parts.recentPartsReplaced.slice(0, 5)) {
-        context.recentlyReplacedParts.push(
-          `${part.partNumber} — ${part.partName}`,
-        );
-      }
-    }
     }
   }
 
-  if (input.includeServiceHistory !== false && (machineId || context.customerName)) {
+  // Standalone Mode fields — fill gaps when no linked call/machine supplied them
+  const modelHint = sanitizeUntrusted(input.modelHint);
+  if (modelHint && !context.printerModel) {
+    context.printerModel = modelHint;
+  }
+  const reportedSymptom = sanitizeUntrusted(input.reportedSymptom);
+  if (reportedSymptom && !context.reportedIssue) {
+    context.reportedIssue = reportedSymptom;
+  }
+
+  // Service history only when a valid service call or machine context is available
+  const hasLinkedRecord = Boolean(context.serviceCallId || context.machineId);
+  if (
+    input.includeServiceHistory !== false &&
+    hasLinkedRecord &&
+    (machineId || context.serialNumber)
+  ) {
     const related = listServiceCalls()
       .filter((c) => {
         if (c.isDraft) return false;
@@ -230,8 +273,9 @@ export function assertCanAccessServiceCallContext(input: {
   serviceCallId?: string | null;
 }): { ok: true } | { ok: false; error: string } {
   if (!input.serviceCallId) return { ok: true };
-  const call = getServiceCall(input.serviceCallId);
-  if (!call) return { ok: false, error: "Service call not found." };
+  // Unknown / invalid IDs fall through to Standalone Mode — do not error.
+  const call = resolveServiceCallForAssist(input.serviceCallId);
+  if (!call) return { ok: true };
   if (input.roleCanViewAll) return { ok: true };
   const assigned = (call.assignment.technician ?? "").trim().toLowerCase();
   const self = input.actorDisplayName.trim().toLowerCase();

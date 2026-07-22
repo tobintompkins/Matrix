@@ -217,11 +217,14 @@ export default function AdminDeletedRecordsPage() {
               type="button"
               variant="danger"
               onClick={() => {
-                const result = evaluatePermanentDelete(selected.recordType);
-                setError(result.error);
+                const result = evaluatePermanentDelete(
+                  selected.recordType,
+                  selected.recordId,
+                );
+                setError(result.ok ? "Eligible — use confirmation flow with reason." : result.error);
               }}
             >
-              Permanent Delete
+              Review Permanent Deletion
             </MatrixButton>
           </div>
         </section>

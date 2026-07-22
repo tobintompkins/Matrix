@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordPmMeterReading } from "@/lib/maintenance/pm-prisma-repository";
+import { queueMachineReEvaluation } from "@/lib/predictive-maintenance/queue";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,13 @@ export async function POST(request: Request) {
     if (!result.ok) {
       return NextResponse.json(result, { status: 400 });
     }
+
+    // Patch 51A.3 — queue predictive re-evaluation (non-blocking)
+    void queueMachineReEvaluation({
+      machineId: body.machineId,
+      reason: "meter_updated",
+    });
+
     return NextResponse.json(result, { status: result.idempotent ? 200 : 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

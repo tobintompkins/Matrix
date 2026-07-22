@@ -8,6 +8,8 @@ import {
   completeTicketWithSignature,
 } from "@/lib/service-dispatch";
 import { notifyTicketEvent } from "@/lib/notifications";
+import { portalRecipientIds } from "./notification-targets";
+import { notifyPortalCustomerTicketEvent } from "./notify-customers";
 import {
   assertSameCustomer,
   authorizedLocationIds,
@@ -19,7 +21,7 @@ import {
   roleCanCreateTickets,
   roleCanManageUsers,
 } from "./access";
-import { getCustomerStatusLabel } from "./status-map";
+import { getCustomerStatusLabel, buildCustomerVisibleTimeline } from "./status-map";
 import { checkRateLimit, safeFileName, validatePortalUpload } from "./security";
 import {
   defaultNotificationPrefs,
@@ -455,13 +457,15 @@ export function getPortalTicket(ticketId: string) {
   const messages = store.messages.filter(
     (m) => m.ticketId === ticketId && m.visibleToCustomer,
   );
+  const timeline = buildCustomerVisibleTimeline(updates);
   return {
     ok: true as const,
     ticket: dto,
-    activity: updates.map((u) => ({
-      at: u.createdAt,
-      label: getCustomerStatusLabel(u.newStatus || u.updateType),
-      message: u.message,
+    activity: timeline.map((a) => ({
+      at: a.at,
+      label: a.label,
+      code: a.code,
+      message: a.message,
     })),
     messages,
     membership: gate.membership,
@@ -564,14 +568,15 @@ export function createPortalTicket(input: {
   });
   writeStore(store);
 
-  notifyTicketEvent({
+  notifyPortalCustomerTicketEvent({
+    customerId: gate.membership.customerId,
     type: "TICKET_CREATED",
     title: `Ticket ${created.ticketNumber} submitted`,
     message: input.problemTitle,
     ticketId: created.call.id,
     ticketNumber: created.ticketNumber,
     customerName: getCustomer(gate.membership.customerId)?.name ?? "",
-    userIds: [gate.membership.displayName, "Dispatcher"],
+    alsoNotify: ["Dispatcher"],
   });
 
   return {
@@ -1165,13 +1170,14 @@ export function requestPmScheduling(printerId: string, note: string) {
     sessionInfo: "portal",
   });
   writeStore(store);
-  notifyTicketEvent({
-    type: "TICKET_CREATED",
+  notifyPortalCustomerTicketEvent({
+    customerId: access.membership.customerId,
+    type: "SCHEDULE_CHANGED",
     title: "PM scheduling requested",
     message: note || `PM requested for ${printerId}`,
     ticketId: printerId,
     ticketNumber: "PM-REQUEST",
-    userIds: ["Dispatcher"],
+    alsoNotify: ["Dispatcher"],
   });
   return { ok: true as const };
 }

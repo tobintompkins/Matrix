@@ -5,19 +5,23 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { getActiveMembership, getSupportContact } from "@/lib/portal";
 
-const portalNav = [
+const portalNav: Array<{
+  label: string;
+  href: string;
+  adminOnly?: boolean;
+}> = [
   { label: "Dashboard", href: "/portal/dashboard" },
-  { label: "Locations", href: "/portal/locations" },
-  { label: "Printers", href: "/portal/printers" },
-  { label: "Tickets", href: "/portal/tickets" },
-  { label: "Maintenance", href: "/portal/maintenance" },
-  { label: "Reports", href: "/portal/reports" },
+  { label: "Service Requests", href: "/portal/service" },
+  { label: "Equipment", href: "/portal/equipment" },
+  { label: "Preventive Maintenance", href: "/portal/preventive-maintenance" },
+  { label: "Meter Readings", href: "/portal/meters" },
+  { label: "Parts Requests", href: "/portal/parts" },
   { label: "Documents", href: "/portal/documents" },
-  { label: "Announcements", href: "/portal/announcements" },
+  { label: "Contacts", href: "/portal/contacts" },
   { label: "Notifications", href: "/portal/notifications" },
-  { label: "Users", href: "/portal/users" },
-  { label: "Help", href: "/portal/help" },
   { label: "Profile", href: "/portal/profile" },
+  { label: "Portal Users", href: "/portal/users", adminOnly: true },
+  { label: "Locations", href: "/portal/locations", adminOnly: true },
 ];
 
 export default function PortalShell({
@@ -30,6 +34,7 @@ export default function PortalShell({
   const pathname = usePathname();
   const membership = getActiveMembership();
   const support = getSupportContact();
+  const isAdmin = membership?.role === "CUSTOMER_ADMIN";
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -42,7 +47,8 @@ export default function PortalShell({
             <h1 className="text-lg font-semibold text-white">{title}</h1>
             {membership ? (
               <p className="text-xs text-slate-400">
-                {membership.displayName} · {membership.role.replaceAll("_", " ")}
+                {membership.displayName} ·{" "}
+                {membership.role.replaceAll("_", " ")}
               </p>
             ) : (
               <p className="text-xs text-rose-300">No active membership</p>
@@ -50,32 +56,45 @@ export default function PortalShell({
           </div>
           <div className="text-right text-xs text-slate-400">
             <p>{support.teamName}</p>
-            <a className="text-cyan-300 hover:text-cyan-200" href={`tel:${support.phone}`}>
+            <a
+              className="text-cyan-300 hover:text-cyan-200"
+              href={`tel:${support.phone}`}
+            >
               {support.phone}
             </a>
+            <p className="mt-1">
+              <Link
+                href="/portal/onboarding"
+                className="text-cyan-300 hover:text-cyan-200"
+              >
+                Onboarding
+              </Link>
+            </p>
           </div>
         </div>
         <nav
           className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 pb-3"
           aria-label="Customer portal"
         >
-          {portalNav.map((item) => {
-            const active =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`shrink-0 rounded-lg px-3 py-2 text-sm ${
-                  active
-                    ? "bg-cyan-500/20 text-cyan-200"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+          {portalNav
+            .filter((item) => !item.adminOnly || isAdmin)
+            .map((item) => {
+              const active =
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`shrink-0 rounded-lg px-3 py-2 text-sm ${
+                    active
+                      ? "bg-cyan-500/20 text-cyan-200"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>

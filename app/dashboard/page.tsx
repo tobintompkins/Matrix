@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ContextPanel from "../components/ContextPanel";
 import MatrixShell from "../components/MatrixShell";
 import FleetCopyCountsCard from "../components/maintenance/FleetCopyCountsCard";
@@ -16,7 +16,7 @@ import DashboardActivityTable, {
 } from "./DashboardActivityTable";
 import DashboardOpsPanel from "./DashboardOpsPanel";
 import ServiceHubWelcome from "./ServiceHubWelcome";
-import { listServiceCalls } from "@/lib/service-calls";
+import { listServiceCalls, subscribeServiceCalls } from "@/lib/service-calls";
 
 function buildRecentActivity(): ActivityRow[] {
   const openish = new Set([
@@ -64,7 +64,12 @@ function buildRecentActivity(): ActivityRow[] {
  * Single H1 comes from MatrixShell ("Service Hub"); page content does not repeat it.
  */
 export default function DashboardPage() {
-  const recentActivity = useMemo(() => buildRecentActivity(), []);
+  const [tick, setTick] = useState(0);
+  useEffect(() => subscribeServiceCalls(() => setTick((t) => t + 1)), []);
+  const recentActivity = useMemo(() => {
+    void tick;
+    return buildRecentActivity();
+  }, [tick]);
 
   return (
     <MatrixShell title="Service Hub" activePath="/dashboard">

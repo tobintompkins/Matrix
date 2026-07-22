@@ -13,4 +13,13 @@ export * from "./pm";
 export * from "./meters";
 export * from "./inventory";
 export * from "./deleted-records";
+export * from "./archived-records";
+export {
+  previewPermanentDeletion,
+  permanentlyDeleteAdminRecord,
+} from "./permanent-delete";
+export type {
+  DeletionPreviewResult,
+  PermanentDeletePreview,
+} from "./permanent-delete";
 export * from "./bulk";

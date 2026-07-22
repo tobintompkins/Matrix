@@ -177,7 +177,11 @@ export function updateMachineAsAdmin(
 ): { ok: true; row: AdminMachineRow } | { ok: false; error: string } {
   const machine = getDigitalTwinMachine(machineId);
   if (!machine) return { ok: false, error: "Machine not found." };
+  const actorOrg = actor.organizationId ?? DEFAULT_ORG_ID;
   const state = getOperationalState("MACHINE", machineId);
+  if (state?.organizationId && state.organizationId !== actorOrg) {
+    return { ok: false, error: "Cross-organization edit is not allowed." };
+  }
   if (state?.lifecycle === "DELETED") {
     return {
       ok: false,
@@ -198,17 +202,25 @@ export function updateMachineAsAdmin(
   if (reason.trim().length < 3) {
     return { ok: false, error: "A reason for change is required." };
   }
-  if (
-    (patch.serialNumber &&
-      patch.serialNumber !== machine.identity.serialNumber) ||
-    (patch.customerName &&
-      patch.customerName !== machine.location.customerName) ||
-    (patch.printerModel &&
-      patch.printerModel !== machine.identity.printerModel) ||
-    (patch.status === "RETIRED" && machine.operational.status !== "RETIRED")
-  ) {
-    if (reason.trim().length < 3) {
-      return { ok: false, error: "A reason is required for protected fields." };
+
+  const nextSerial = patch.serialNumber?.trim();
+  if (nextSerial && nextSerial !== (existing?.serialNumber ?? machine.identity.serialNumber)) {
+    const conflict = digitalTwinFleet.some((other) => {
+      if (other.identity.machineId === machineId) return false;
+      const otherState = getOperationalState("MACHINE", other.identity.machineId);
+      if (otherState?.lifecycle === "DELETED" || otherState?.lifecycle === "ARCHIVED") {
+        return false;
+      }
+      const otherMeta = readMeta()[other.identity.machineId];
+      const otherSerial = otherMeta?.serialNumber ?? other.identity.serialNumber;
+      return otherSerial === nextSerial;
+    });
+    if (conflict) {
+      return {
+        ok: false,
+        error:
+          "Serial number conflicts with another active machine. Document an authorized exception before forcing a duplicate.",
+      };
     }
   }
 
@@ -254,13 +266,21 @@ export function archiveMachine(
 ): { ok: true; row: AdminMachineRow } | { ok: false; error: string } {
   const machine = getDigitalTwinMachine(machineId);
   if (!machine) return { ok: false, error: "Machine not found." };
+  if (!reason.trim()) {
+    return { ok: false, error: "Archive reason is required." };
+  }
+  const actorOrg = actor.organizationId ?? DEFAULT_ORG_ID;
+  const existingState = getOperationalState("MACHINE", machineId);
+  if (existingState?.organizationId && existingState.organizationId !== actorOrg) {
+    return { ok: false, error: "Cross-organization archive is not allowed." };
+  }
   const overlay = archiveOperationalRecord({
     recordType: "MACHINE",
     recordId: machineId,
     actorUserId: actor.userId,
     actorName: actor.displayName,
     reason,
-    organizationId: actor.organizationId ?? DEFAULT_ORG_ID,
+    organizationId: actorOrg,
     displayName: machine.identity.nickname,
     customerName: machine.location.customerName,
     machineName: machine.identity.serialNumber,
@@ -318,10 +338,38 @@ export function restoreMachine(
 ): { ok: true; row: AdminMachineRow } | { ok: false; error: string } {
   const machine = getDigitalTwinMachine(machineId);
   if (!machine) return { ok: false, error: "Machine not found." };
+  if (!reason || reason.trim().length < 3) {
+    return { ok: false, error: "A restoration reason is required." };
+  }
   const state = getOperationalState("MACHINE", machineId);
   if (!state || state.lifecycle === "ACTIVE") {
     return { ok: false, error: "This machine is not archived or deleted." };
   }
+  const actorOrg = actor.organizationId ?? DEFAULT_ORG_ID;
+  if (state.organizationId && state.organizationId !== actorOrg) {
+    return { ok: false, error: "Cross-organization restore is not allowed." };
+  }
+
+  const meta = readMeta()[machineId];
+  const serial = meta?.serialNumber ?? machine.identity.serialNumber;
+  const serialConflict = digitalTwinFleet.some((other) => {
+    if (other.identity.machineId === machineId) return false;
+    const otherState = getOperationalState("MACHINE", other.identity.machineId);
+    if (otherState?.lifecycle === "DELETED" || otherState?.lifecycle === "ARCHIVED") {
+      return false;
+    }
+    const otherMeta = readMeta()[other.identity.machineId];
+    const otherSerial = otherMeta?.serialNumber ?? other.identity.serialNumber;
+    return otherSerial === serial;
+  });
+  if (serialConflict) {
+    return {
+      ok: false,
+      error:
+        "Restore failed: serial number conflicts with another active machine.",
+    };
+  }
+
   if (state.lifecycle === "DELETED") {
     const overlay = restoreOperationalRecord({
       recordType: "MACHINE",
@@ -344,7 +392,7 @@ export function restoreMachine(
     recordType: "MACHINE",
     recordId: machineId,
     lifecycle: "ACTIVE",
-    organizationId: actor.organizationId ?? DEFAULT_ORG_ID,
+    organizationId: actorOrg,
     displayName: machine.identity.nickname,
     updatedAtVersion: 0,
   });

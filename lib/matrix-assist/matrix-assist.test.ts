@@ -34,6 +34,34 @@ describe("buildMatrixAssistContext", () => {
     // May be ok if seed call unassigned or not found differently — assert shape
     assert.ok("ok" in result);
   });
+
+  it("does not error when service call id is unknown (Standalone Mode fallback)", () => {
+    const access = assertCanAccessServiceCallContext({
+      roleCanViewAll: true,
+      actorDisplayName: "Tech",
+      serviceCallId: "NOT-A-REAL-CALL",
+    });
+    assert.equal(access.ok, true);
+
+    const ctx = buildMatrixAssistContext({
+      serviceCallId: "NOT-A-REAL-CALL",
+      modelHint: "GD9630",
+      reportedSymptom: "Tray 2 misfeed",
+      technicianObservations: "Checked rollers",
+    });
+    assert.equal(ctx.serviceCallId, undefined);
+    assert.equal(ctx.printerModel, "GD9630");
+    assert.equal(ctx.reportedIssue, "Tray 2 misfeed");
+    assert.equal(ctx.recentServiceHistory.length, 0);
+  });
+
+  it("resolves service calls by ticket number when available", () => {
+    const ctx = buildMatrixAssistContext({
+      serviceCallId: "TKT-2026-0142",
+    });
+    assert.ok(ctx.serviceCallId, "expected ticket to resolve to a service call id");
+    assert.ok(ctx.printerModel || ctx.machineId);
+  });
 });
 
 describe("SampleAssistProvider", () => {

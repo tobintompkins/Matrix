@@ -79,6 +79,18 @@ export default function DataAdministrationPage() {
         permission: "VIEW_DELETED_RECORDS",
       },
       {
+        href: "/admin/archived-records",
+        title: "Archived Records",
+        detail: `${archived} archived · restore and deletion preview`,
+        permission: "VIEW_ARCHIVED_RECORDS",
+      },
+      {
+        href: "/admin/managed-content",
+        title: "Managed Content",
+        detail: "Announcements, help text, notices (sanitized)",
+        permission: "MANAGE_ADMIN_CONTENT",
+      },
+      {
         href: "/admin/audit",
         title: "Recent Data Corrections",
         detail: `${recentCorrections} archive/delete state changes in this session`,
@@ -87,7 +99,7 @@ export default function DataAdministrationPage() {
       {
         href: "/admin/deleted-records",
         title: "Protected Records",
-        detail: `${archived} archived · permanent delete disabled by default`,
+        detail: `${archived} archived · permanent delete restricted when history exists`,
         permission: "VIEW_DELETED_RECORDS",
       },
     ];

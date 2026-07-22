@@ -16,6 +16,7 @@ import MatrixAuthControls from "./MatrixAuthControls";
 import {
   IconAi,
   IconBell,
+  IconBrain,
   IconCalls,
   IconChevronLeft,
   IconCustomers,
@@ -126,6 +127,21 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Administration",
     items: [
       { label: "Administration", href: "/admin", icon: IconShield },
+      {
+        label: "Executive Command Center",
+        href: "/executive-command-center",
+        icon: IconDashboard,
+      },
+      {
+        label: "AI Operations Center",
+        href: "/ai-operations",
+        icon: IconBrain,
+      },
+      {
+        label: "Predictive Maintenance",
+        href: "/ai-operations/predictive-maintenance",
+        icon: IconMaintenance,
+      },
     ],
   },
 ];

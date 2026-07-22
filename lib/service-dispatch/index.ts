@@ -80,6 +80,7 @@ export {
   listTechnicians,
   listTicketAudit,
   listTicketUpdates,
+  postCustomerVisibleUpdate,
   markWaitingForParts,
   resetDispatchForTests,
   runEscalationsForTicket,

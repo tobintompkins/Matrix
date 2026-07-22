@@ -7,6 +7,7 @@ import { getMatrixAssistPublicStatus } from "@/lib/matrix-assist/config";
 import {
   assertCanAccessServiceCallContext,
   buildMatrixAssistContext,
+  resolveServiceCallForAssist,
 } from "@/lib/matrix-assist/context-builder";
 import { checkMatrixAssistRateLimit } from "@/lib/matrix-assist/rate-limit";
 import {
@@ -71,37 +72,49 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: access.error }, { status: 403 });
   }
 
-  if (!body.serviceCallId && !body.machineId) {
+  // Resolve linked call when present; unknown IDs soft-fall through to Standalone Mode
+  const resolvedCall = resolveServiceCallForAssist(body.serviceCallId);
+  const effectiveServiceCallId = resolvedCall?.id;
+  const machineId = body.machineId?.trim() || undefined;
+  const modelHint = body.modelHint?.trim() || undefined;
+  const reportedSymptom = body.reportedSymptom?.trim() || undefined;
+  const technicianObservations = body.technicianObservations?.trim() || undefined;
+
+  const standaloneReady = Boolean(modelHint || reportedSymptom);
+  if (!effectiveServiceCallId && !machineId && !standaloneReady) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Select a machine or service call before starting Matrix Assist.",
+        error:
+          "Enter a machine model and symptom for Standalone Mode, or link a service call / machine.",
       },
       { status: 400 },
     );
   }
 
   const ctx = buildMatrixAssistContext({
-    serviceCallId: body.serviceCallId,
-    machineId: body.machineId,
-    technicianObservations: body.technicianObservations,
+    serviceCallId: effectiveServiceCallId,
+    machineId,
+    technicianObservations,
+    modelHint,
+    reportedSymptom,
   });
 
   const session = await createDiagnosticSession({
     organizationId: actor.organizationId,
-    serviceCallId: ctx.serviceCallId ?? body.serviceCallId,
-    machineId: ctx.machineId ?? body.machineId,
+    serviceCallId: ctx.serviceCallId ?? null,
+    machineId: ctx.machineId ?? machineId ?? null,
     technicianId: actor.userId,
     technicianName: actor.displayName,
-    reportedSymptom: (body.reportedSymptom ?? ctx.reportedIssue ?? "").slice(
+    reportedSymptom: (reportedSymptom ?? ctx.reportedIssue ?? "").slice(
       0,
       MAX_ASSIST_INPUT_LENGTH,
     ),
-    technicianObservations: (body.technicianObservations ?? "").slice(
+    technicianObservations: (technicianObservations ?? "").slice(
       0,
       MAX_ASSIST_INPUT_LENGTH,
     ),
-    modelHint: body.modelHint ?? ctx.printerModel,
+    modelHint: modelHint ?? ctx.printerModel ?? undefined,
     errorCode: body.errorCode ?? undefined,
   });
 
@@ -112,6 +125,7 @@ export async function POST(request: Request) {
     payload: {
       serviceCallId: session.serviceCallId,
       machineId: session.machineId,
+      standalone: !session.serviceCallId && !session.machineId,
     },
   });
 
@@ -119,5 +133,6 @@ export async function POST(request: Request) {
     ok: true,
     session,
     context: ctx,
+    mode: ctx.serviceCallId || ctx.machineId ? "linked" : "standalone",
   });
 }

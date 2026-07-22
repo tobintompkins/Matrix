@@ -322,6 +322,12 @@ export default function MachinePmDetailPage() {
               >
                 Open Digital Twin
               </Link>
+              <Link
+                href={`/ai-operations/predictive-maintenance/machines/${encodeURIComponent(machine.machineId)}`}
+                className="mt-2 block text-sm text-cyan-400 hover:underline"
+              >
+                Predictive health (advisory)
+              </Link>
             </MatrixCard>
 
             <div className="space-y-6">

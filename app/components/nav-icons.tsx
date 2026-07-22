@@ -195,6 +195,18 @@ export function IconAi(p: IconProps) {
   );
 }
 
+/** Patch 51A.1 — AI Operations Center (Brain) */
+export function IconBrain(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M9.5 4.5a3 3 0 0 0-3 3v.4A3 3 0 0 0 4 10.5c0 1.1.6 2.1 1.5 2.6V16a3 3 0 0 0 3 3h1" />
+      <path d="M14.5 4.5a3 3 0 0 1 3 3v.4A3 3 0 0 1 20 10.5c0 1.1-.6 2.1-1.5 2.6V16a3 3 0 0 1-3 3h-1" />
+      <path d="M12 4v16" />
+      <path d="M9 9h1.5M13.5 9H15M9 12h1.5M13.5 12H15M9.5 15H11M13 15h1.5" />
+    </svg>
+  );
+}
+
 export function IconChevronLeft(p: IconProps) {
   return (
     <svg {...base(p)}>

@@ -58,9 +58,26 @@ export async function POST(_request: Request, { params }: Params) {
     return NextResponse.json({ ok: false, error: "Session not found." }, { status: 404 });
   }
 
+  // Standalone / unlinked sessions: soft response — no error, no invented history
+  if (!session.serviceCallId && !session.machineId) {
+    return NextResponse.json({
+      ok: true,
+      summary: {
+        bullets: [
+          "Service history is available when Matrix Assist is linked to a valid service call or machine.",
+        ],
+        evidence: [],
+        isSample: true,
+      },
+      mode: "standalone",
+    });
+  }
+
   const ctx = buildMatrixAssistContext({
     serviceCallId: session.serviceCallId,
     machineId: session.machineId,
+    modelHint: session.modelHint,
+    reportedSymptom: session.reportedSymptom,
   });
 
   const summary = await provider.summarizeServiceHistory({

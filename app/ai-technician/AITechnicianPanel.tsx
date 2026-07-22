@@ -22,6 +22,8 @@ export default function AITechnicianPanel() {
     return undefined;
   }, [workflowContext.assetId, workflowContext.ticket]);
 
+  // Pass ticket as a service-call hint. Matrix Assist resolves id / work-order /
+  // ticket number when a call exists; otherwise it soft-falls to Standalone Mode.
   const serviceCallId = workflowContext.ticket || undefined;
 
   return (

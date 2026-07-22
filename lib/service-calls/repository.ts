@@ -19,8 +19,11 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "matrix.service-calls.v1";
+const STORE_EVENT = "matrix-service-calls-changed";
 
 let memoryStore: ServiceCall[] | null = null;
+/** When false, reads return seed data so SSR and the first client paint match. */
+let browserPersistenceEnabled = false;
 
 function cloneCalls(calls: ServiceCall[]): ServiceCall[] {
   return structuredClone(calls);
@@ -46,16 +49,53 @@ function writeSessionOverlay(calls: ServiceCall[]): void {
   }
 }
 
+function notifyStoreChanged(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(STORE_EVENT));
+}
+
+/**
+ * Enable sessionStorage-backed service calls after React hydration.
+ * Call once from ClientStoreHydration (root layout) inside useEffect.
+ */
+export function enableServiceCallBrowserPersistence(): void {
+  if (typeof window === "undefined") return;
+  if (browserPersistenceEnabled) return;
+  browserPersistenceEnabled = true;
+  memoryStore = null;
+  notifyStoreChanged();
+}
+
+export function subscribeServiceCalls(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(STORE_EVENT, onStoreChange);
+  return () => window.removeEventListener(STORE_EVENT, onStoreChange);
+}
+
 function ensureStore(): ServiceCall[] {
+  // Browser pre-hydration: seed only (must match SSR; do not read sessionStorage yet).
+  if (typeof window !== "undefined" && !browserPersistenceEnabled) {
+    return cloneCalls(sampleServiceCalls);
+  }
   if (memoryStore) return memoryStore;
+  if (typeof window === "undefined") {
+    // Node / SSR: in-memory seed (tests may mutate; each cold start gets sample).
+    memoryStore = cloneCalls(sampleServiceCalls);
+    return memoryStore;
+  }
   const overlay = readSessionOverlay();
   memoryStore = overlay ? cloneCalls(overlay) : cloneCalls(sampleServiceCalls);
   return memoryStore;
 }
 
 function commit(next: ServiceCall[]): ServiceCall[] {
+  // Ignore writes during the pre-hydration browser window (no clicks yet).
+  if (typeof window !== "undefined" && !browserPersistenceEnabled) {
+    return next;
+  }
   memoryStore = next;
   writeSessionOverlay(next);
+  notifyStoreChanged();
   return next;
 }
 

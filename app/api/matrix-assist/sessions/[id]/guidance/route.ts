@@ -115,6 +115,8 @@ export async function POST(request: Request, { params }: Params) {
     machineId: session.machineId,
     technicianObservations:
       body.observations ?? session.technicianObservations,
+    modelHint: session.modelHint,
+    reportedSymptom: session.reportedSymptom,
   });
 
   const templates = matchTemplates({

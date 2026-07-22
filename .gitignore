@@ -15,6 +15,8 @@
 
 # next.js
 /.next/
+/.next-validate/
+.validation-*.txt
 /out/
 
 # production
@@ -65,5 +67,8 @@ Thumbs.db
 /.clerk/
 
 # Clerk keyless local keys
-.clerk
+.clerk/
+
+# Customer portal uploaded files
+/data/portal-uploads/
 

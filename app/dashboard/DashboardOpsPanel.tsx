@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -15,7 +15,9 @@ import { getPmDashboard } from "@/lib/pm-intelligence";
 import {
   computeServiceCallMetrics,
   listServiceCalls,
+  subscribeServiceCalls,
 } from "@/lib/service-calls";
+import { getTicketMeta } from "@/lib/service-dispatch/repository";
 import {
   isManagerOrAdminRole,
   isTechnicianRole,
@@ -253,6 +255,21 @@ function buildAttentionItems(): AttentionItem[] {
       severity: "attention",
     });
   }
+  const portalSubmitted = calls.filter((c) => {
+    return (
+      getTicketMeta(c.id)?.source === "CUSTOMER_PORTAL" &&
+      !["RESOLVED", "CLOSED", "CANCELLED"].includes(c.status)
+    );
+  }).length;
+  if (portalSubmitted > 0) {
+    items.push({
+      id: "portal-submitted",
+      label: "Portal-submitted service requests",
+      detail: `${portalSubmitted} open request${portalSubmitted === 1 ? "" : "s"} from Customer Portal`,
+      href: "/service-calls",
+      severity: "watch",
+    });
+  }
   if (inventory.lowStock > 0) {
     items.push({
       id: "low-stock",
@@ -309,6 +326,8 @@ export default function DashboardOpsPanel() {
     user?.username ??
     user?.primaryEmailAddress?.emailAddress ??
     "";
+
+  useEffect(() => subscribeServiceCalls(() => setTick((t) => t + 1)), []);
 
   const kpis = useMemo(() => {
     void tick;

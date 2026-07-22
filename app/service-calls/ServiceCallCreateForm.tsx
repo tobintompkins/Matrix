@@ -164,6 +164,12 @@ export default function ServiceCallCreateForm() {
       return;
     }
 
+    if (!isDraft) {
+      void import("@/lib/automations/client-notify").then((m) =>
+        m.notifyServiceCallCreated(result.call),
+      );
+    }
+
     if (machineCurrentlyDown) {
       setMachineStatusOverride({
         machineId,

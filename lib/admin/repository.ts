@@ -7,6 +7,12 @@ import {
   type AdminAccessScope,
   type AdminUserStatus,
 } from "./types";
+import {
+  classifyAction,
+  detectEnvironment,
+  newCorrelationId,
+  newRequestId,
+} from "@/lib/system-logs/taxonomy";
 
 const SEED_USERS: Array<{
   email: string;
@@ -302,17 +308,98 @@ export async function writeAdminAudit(input: {
   entityType?: string;
   entityId?: string | null;
   payload?: Record<string, unknown>;
+  /** Patch 50C-2 optional taxonomy */
+  category?: string;
+  severity?: string;
+  outcome?: string;
+  visibility?: string;
+  requestId?: string;
+  correlationId?: string;
+  sourceModule?: string;
+  sourceRoute?: string;
+  httpMethod?: string;
+  statusCode?: number;
+  message?: string;
+  errorCode?: string;
+  durationMs?: number;
 }) {
+  const inferred = classifyAction(input.action);
+
+  // AuditLog has FKs to Organization/User. Admin/Clerk IDs often are not present
+  // in those tables — ensure org row exists and only link actor when User exists.
+  let organizationId: string | null = input.organizationId || null;
+  if (organizationId) {
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true },
+    });
+    if (!org) {
+      try {
+        await prisma.organization.create({
+          data: {
+            id: organizationId,
+            name: organizationId === DEFAULT_ORG_ID ? "SFX" : organizationId,
+            slug: organizationId,
+          },
+        });
+      } catch {
+        // Concurrent create or schema race — fall back to null if still missing.
+        const again = await prisma.organization.findUnique({
+          where: { id: organizationId },
+          select: { id: true },
+        });
+        if (!again) organizationId = null;
+      }
+    }
+  }
+
+  let actorId: string | null = input.actorId ?? null;
+  if (actorId) {
+    const user = await prisma.user.findUnique({
+      where: { id: actorId },
+      select: { id: true },
+    });
+    if (!user) {
+      // Keep actor identity in payload; do not violate User FK.
+      actorId = null;
+    }
+  }
+
+  const payload: Record<string, unknown> = {
+    ...(input.payload ?? {}),
+  };
+  if (input.actorId && !actorId) {
+    payload.actorExternalId = input.actorId;
+  }
+  if (input.organizationId && !organizationId) {
+    payload.organizationExternalId = input.organizationId;
+  }
+
   return prisma.auditLog.create({
     data: {
-      organizationId: input.organizationId,
-      actorId: input.actorId ?? null,
+      organizationId,
+      actorId,
       action: input.action,
       entityType: input.entityType ?? "Administration",
       entityId: input.entityId ?? null,
-      payload: input.payload
-        ? JSON.stringify(redactAuditPayload(input.payload))
-        : null,
+      payload:
+        Object.keys(payload).length > 0
+          ? JSON.stringify(redactAuditPayload(payload))
+          : null,
+      category: input.category ?? inferred.category,
+      severity: input.severity ?? inferred.severity,
+      outcome: input.outcome ?? inferred.outcome,
+      visibility: input.visibility ?? inferred.visibility,
+      environment: detectEnvironment(),
+      requestId: input.requestId ?? newRequestId(),
+      correlationId: input.correlationId ?? newCorrelationId(),
+      sourceModule: input.sourceModule ?? null,
+      sourceRoute: input.sourceRoute ?? null,
+      httpMethod: input.httpMethod ?? null,
+      statusCode: input.statusCode ?? null,
+      message: input.message ?? null,
+      errorCode: input.errorCode ?? null,
+      durationMs: input.durationMs ?? null,
     },
   });
 }
@@ -320,7 +407,7 @@ export async function writeAdminAudit(input: {
 function redactAuditPayload(payload: Record<string, unknown>) {
   const clone = { ...payload };
   for (const key of Object.keys(clone)) {
-    if (/password|token|secret|apikey|api_key|cookie/i.test(key)) {
+    if (/password|token|secret|apikey|api_key|cookie|authorization|session/i.test(key)) {
       clone[key] = "[REDACTED]";
     }
   }

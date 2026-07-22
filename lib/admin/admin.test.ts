@@ -28,6 +28,10 @@ describe("Administration Center permissions", () => {
     assert.equal(canAccessRoute("FIELD_TECHNICIAN", "/admin/roles"), false);
     assert.equal(canAccessRoute("ADMIN", "/admin/data"), true);
     assert.equal(canAccessRoute("FIELD_TECHNICIAN", "/admin/deleted-records"), false);
+    assert.equal(canAccessRoute("ADMIN", "/admin/approvals"), true);
+    assert.equal(canAccessRoute("SERVICE_MANAGER", "/admin/approvals"), true);
+    assert.equal(canAccessRoute("FIELD_TECHNICIAN", "/admin/approvals"), true);
+    assert.equal(canAccessRoute("TRAINER", "/admin/approvals"), false);
   });
 
   it("grants final-admin related capabilities only to admin roles", () => {

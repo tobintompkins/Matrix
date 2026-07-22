@@ -1,4 +1,4 @@
-# Enterprise Administration Center (Patches 49A–49C)
+# Enterprise Administration Center (Patches 49A–50A)
 
 Matrix preserves historical operational and audit records when user access is deactivated. Deactivation removes access but does not erase work history.
 
@@ -13,7 +13,7 @@ Overview
 Access — Users, Roles, Security
 Data — Data Admin, Service Calls, Customers, Machines, PM, Meters, Inventory, Deleted Records
 Configuration — System Config, Organization, Features, Notifications, Announcements, Matrix Assist, Portal
-Insights — Executive Dashboard, Admin Reports, Usage & Adoption, Audit History
+Insights — Executive Dashboard, **Approval Center**, Admin Reports, Usage & Adoption, Audit History
 System — System Health, Background Jobs, Backups, Integrations, Import & Export, Admin Tools, Version
 ```
 
@@ -24,6 +24,7 @@ Only permitted sections appear for the signed-in role.
 | Route | Permission |
 |-------|------------|
 | `/admin/executive` | `VIEW_EXECUTIVE_ADMIN_DASHBOARD` |
+| `/admin/approvals` | `VIEW_APPROVAL_CENTER` |
 | `/admin/reports` | `VIEW_ADMIN_REPORTS` |
 | `/admin/usage` | `VIEW_USAGE_ANALYTICS` |
 | `/admin/system-health` | `VIEW_SYSTEM_HEALTH` |
@@ -35,6 +36,8 @@ Only permitted sections appear for the signed-in role.
 | `/admin/announcements` | `MANAGE_ANNOUNCEMENTS` |
 | `/admin/tools` | `VIEW_ADMIN_TOOLS` |
 | `/admin/version` | `VIEW_VERSION_INFORMATION` |
+
+See also [APPROVAL_CENTER.md](./APPROVAL_CENTER.md) for Patch 50A.
 
 ## Executive Dashboard
 

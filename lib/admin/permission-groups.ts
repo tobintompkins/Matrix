@@ -466,4 +466,199 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       },
     ],
   },
+  {
+    id: "approvals",
+    label: "Approval Center",
+    permissions: [
+      {
+        code: "VIEW_APPROVAL_CENTER",
+        label: "View Approval Center",
+        description: "Access the Enterprise Approval Center.",
+      },
+      {
+        code: "VIEW_ALL_APPROVALS",
+        label: "View All Approvals",
+        description: "View all organization approval requests.",
+        highRisk: true,
+      },
+      {
+        code: "CREATE_APPROVAL_REQUEST",
+        label: "Create Approval Requests",
+        description: "Create and submit approval requests.",
+      },
+      {
+        code: "APPROVE_REQUEST",
+        label: "Approve Requests",
+        description: "Approve eligible workflow steps.",
+      },
+      {
+        code: "REJECT_REQUEST",
+        label: "Reject Requests",
+        description: "Reject approval requests with a reason.",
+      },
+      {
+        code: "RETURN_APPROVAL_FOR_REVISION",
+        label: "Return for Revision",
+        description: "Return requests to the requester for changes.",
+      },
+      {
+        code: "ESCALATE_APPROVAL",
+        label: "Escalate Approvals",
+        description: "Escalate requests to another reviewer.",
+      },
+      {
+        code: "ASSIGN_APPROVAL_REVIEWER",
+        label: "Assign Reviewers",
+        description: "Assign or reassign approval reviewers.",
+      },
+      {
+        code: "DELEGATE_APPROVAL",
+        label: "Delegate Approvals",
+        description: "Delegate review responsibility.",
+      },
+      {
+        code: "MANAGE_APPROVAL_RULES",
+        label: "Manage Approval Rules",
+        description: "Create and activate approval workflow rules.",
+        highRisk: true,
+      },
+      {
+        code: "EXPORT_APPROVALS",
+        label: "Export Approvals",
+        description: "Export approval queue data.",
+      },
+      {
+        code: "ARCHIVE_APPROVALS",
+        label: "Archive Approvals",
+        description: "Archive closed approval requests.",
+      },
+    ],
+  },
+  {
+    id: "organization-health",
+    label: "Organization Health",
+    permissions: [
+      {
+        code: "VIEW_ORGANIZATION_HEALTH",
+        label: "View Organization Health",
+        description: "Access the Organization Health dashboard.",
+      },
+      {
+        code: "VIEW_EXECUTIVE_HEALTH_SCORE",
+        label: "View Executive Health Score",
+        description: "View overall organization health score details.",
+      },
+      {
+        code: "EXPORT_ORGANIZATION_HEALTH",
+        label: "Export Organization Health",
+        description: "Export organization health summaries.",
+      },
+      {
+        code: "MANAGE_HEALTH_SCORE_WEIGHTS",
+        label: "Manage Health Score Weights",
+        description: "Configure category weights and health thresholds.",
+        highRisk: true,
+      },
+      {
+        code: "ACKNOWLEDGE_HEALTH_ALERTS",
+        label: "Acknowledge Health Alerts",
+        description: "Acknowledge operational health alerts.",
+      },
+      {
+        code: "RESOLVE_HEALTH_ALERTS",
+        label: "Resolve Health Alerts",
+        description: "Resolve or dismiss operational health alerts.",
+      },
+    ],
+  },
+  {
+    id: "data-quality",
+    label: "Data Quality Center",
+    permissions: [
+      {
+        code: "VIEW_DATA_QUALITY_CENTER",
+        label: "View Data Quality Center",
+        description: "Access the Data Quality Center dashboard.",
+      },
+      {
+        code: "VIEW_DATA_QUALITY_ISSUES",
+        label: "View Data Quality Issues",
+        description: "Browse and filter data quality issues.",
+      },
+      {
+        code: "RUN_DATA_QUALITY_SCAN",
+        label: "Run Data Quality Scan",
+        description: "Run read-only data quality scans.",
+        highRisk: true,
+      },
+      {
+        code: "MERGE_DUPLICATE_RECORDS",
+        label: "Merge Duplicate Records",
+        description: "Merge duplicate customers, machines, or parts.",
+        highRisk: true,
+      },
+      {
+        code: "FIX_DATA_QUALITY_RECORD",
+        label: "Fix Data Quality Records",
+        description: "Apply safe automated or guided fixes.",
+        highRisk: true,
+      },
+      {
+        code: "EXPORT_DATA_QUALITY",
+        label: "Export Data Quality",
+        description: "Export data quality summaries and issue queues.",
+      },
+      {
+        code: "MANAGE_DATA_QUALITY_SETTINGS",
+        label: "Manage Data Quality Settings",
+        description: "Configure score weights and scan defaults.",
+        highRisk: true,
+      },
+    ],
+  },
+  {
+    id: "system-logs",
+    label: "System Logs",
+    permissions: [
+      {
+        code: "VIEW_SYSTEM_LOGS",
+        label: "View System Logs",
+        description: "Access the System Logs Center dashboard.",
+      },
+      {
+        code: "VIEW_SECURITY_LOGS",
+        label: "View Security Logs",
+        description: "View security events and investigation queues.",
+      },
+      {
+        code: "VIEW_SENSITIVE_LOG_METADATA",
+        label: "View Sensitive Log Metadata",
+        description: "View restricted metadata such as IP and stack references.",
+        highRisk: true,
+      },
+      {
+        code: "EXPORT_SYSTEM_LOGS",
+        label: "Export System Logs",
+        description: "Export filtered system log datasets.",
+        highRisk: true,
+      },
+      {
+        code: "MANAGE_LOG_RETENTION",
+        label: "Manage Log Retention",
+        description: "Configure log retention policies.",
+        highRisk: true,
+      },
+      {
+        code: "ACKNOWLEDGE_SECURITY_EVENT",
+        label: "Acknowledge Security Events",
+        description: "Acknowledge and work security investigation events.",
+      },
+      {
+        code: "RESOLVE_SECURITY_EVENT",
+        label: "Resolve Security Events",
+        description: "Resolve or dismiss security events.",
+        highRisk: true,
+      },
+    ],
+  },
 ];
