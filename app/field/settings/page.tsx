@@ -1,5 +1,6 @@
 "use client";
 import { useFieldIdentity } from "@/app/field/FieldIdentityProvider";
+import Link from "next/link";
 
 import { startTransition, useCallback, useEffect, useState } from "react";
 import FieldShell from "../FieldShell";
@@ -15,10 +16,11 @@ import {
   retireLegacyOfflineStore,
   type FieldStorageStats,
 } from "@/lib/field";
+import { canViewOtherTechniciansField } from "@/lib/auth/field-permissions";
 
 
 export default function FieldSettingsPage() {
-  const { userId: TECH_ID } = useFieldIdentity();
+  const { userId: TECH_ID, role } = useFieldIdentity();
   const [stats, setStats] = useState<FieldStorageStats | null>(null);
   const [notice, setNotice] = useState("");
 
@@ -77,6 +79,14 @@ export default function FieldSettingsPage() {
       )}
 
       <div className="grid gap-3">
+        {canViewOtherTechniciansField(role) && (
+          <Link
+            href="/field/sync-inbox"
+            className="flex min-h-12 items-center justify-center rounded-xl border border-cyan-700/70 bg-cyan-500/10 px-4 font-semibold text-cyan-200"
+          >
+            Review Server Sync Inbox
+          </Link>
+        )}
         <button
           type="button"
           className="min-h-12 rounded-xl border border-slate-600 font-semibold"
