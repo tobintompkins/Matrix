@@ -17,11 +17,11 @@ function AnalyticsBody() {
     <div className="mx-auto max-w-7xl space-y-6 px-1 py-2">
       <header>
         <h1 className="text-2xl font-semibold text-slate-100">
-          Executive Analytics
+          Executive KPI dashboard
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          Intelligence across service, fleet, technicians, customers, predictive
-          risk, and AI — using live Matrix records.
+          Executive Intelligence KPIs across service, fleet, parts, technicians,
+          customers, predictive risk, and AI — from live Matrix records.
         </p>
       </header>
 
@@ -91,7 +91,45 @@ function AnalyticsBody() {
               }
               href="/executive-command-center"
             />
+            <MatrixStatCard
+              label="Organization health"
+              value={
+                analytics.kpiTrends.current.organizationHealthScore == null
+                  ? "—"
+                  : String(analytics.kpiTrends.current.organizationHealthScore)
+              }
+              href="/admin/organization-health"
+            />
+            <MatrixStatCard
+              label="Parts consumed"
+              value={String(analytics.partsConsumption.totalConsumed)}
+              href="/inventory"
+              status={analytics.partsConsumption.empty ? "unavailable" : "neutral"}
+            />
           </div>
+
+          {!analytics.partsConsumption.empty ? (
+            <MatrixCard className="p-4">
+              <h2 className="mb-3 text-lg font-medium text-slate-100">
+                Parts consumption (top)
+              </h2>
+              <ul className="space-y-2 text-sm">
+                {analytics.partsConsumption.topParts.slice(0, 8).map((p) => (
+                  <li
+                    key={p.partNumber}
+                    className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 py-1"
+                  >
+                    <Link href={p.href} className="text-cyan-300 hover:underline">
+                      {p.partNumber}
+                    </Link>
+                    <span className="text-slate-400">
+                      {p.quantityConsumed} units · {p.issueEvents} issues
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </MatrixCard>
+          ) : null}
 
           <div className="grid gap-4 lg:grid-cols-2">
             <MatrixCard className="p-4">

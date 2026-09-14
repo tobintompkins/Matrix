@@ -6,18 +6,22 @@ import { EXECUTIVE_RANGE_OPTIONS } from "@/lib/executive-command-center/date-ran
 
 const LINKS = [
   { href: "/executive-command-center", label: "Overview" },
-  { href: "/executive-command-center/analytics", label: "Analytics" },
+  { href: "/executive-command-center/analytics", label: "KPI Dashboard" },
   { href: "/executive-command-center/briefings", label: "Briefings" },
-  { href: "/executive-command-center/report-center", label: "Reports" },
+  { href: "/executive-command-center/report-center", label: "Report Builder" },
   { href: "/executive-command-center/alerts", label: "Alerts & Actions" },
   { href: "/executive-command-center/schedules", label: "Schedules" },
   { href: "/executive-command-center/scorecards", label: "Scorecards" },
   { href: "/executive-command-center/comparisons", label: "Comparisons" },
-  { href: "/executive-command-center/ai-insights", label: "AI Ask" },
+  { href: "/executive-command-center/ai-insights", label: "AI Copilot" },
   { href: "/executive-command-center/trends", label: "KPI Trends" },
-  { href: "/executive-command-center/technicians", label: "Technicians" },
-  { href: "/executive-command-center/customers", label: "Customers" },
-  { href: "/executive-command-center/predictive", label: "Predictive" },
+  { href: "/executive-command-center/technicians", label: "Tech Productivity" },
+  { href: "/executive-command-center/customers", label: "Customer Reliability" },
+  { href: "/executive-command-center/predictive", label: "Predictive Trends" },
+  {
+    href: "/executive-command-center/predictive-analytics",
+    label: "Business Forecasts",
+  },
   { href: "/executive-command-center/insights", label: "Insight Feed" },
   { href: "/executive-command-center/widgets", label: "Widgets" },
 ];
@@ -36,7 +40,7 @@ export default function ExecutiveNav({ range, onRangeChange }: Props) {
     <div className="mb-4 space-y-3">
       <nav
         className="flex flex-wrap gap-2"
-        aria-label="Executive Command Center sections"
+        aria-label="Executive Intelligence sections"
       >
         {LINKS.map((link) => {
           const active =

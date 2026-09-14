@@ -124,11 +124,12 @@ function ExecutiveCommandCenterBody() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h1 className="text-2xl font-semibold text-slate-100">
-                  Executive Command Center
+                  Executive Intelligence
                 </h1>
                 <p className="mt-1 max-w-2xl text-sm text-slate-400">
-                  Enterprise visibility, AI insights, and operational
-                  priorities.
+                  Executive Command Center — aggregated KPIs, fleet health,
+                  predictive trends, and AI recommendations from live Matrix
+                  modules.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -289,10 +290,77 @@ function ExecutiveCommandCenterBody() {
                     value={String(kpis?.activeTechnicians ?? 0)}
                     status="neutral"
                     trend={kpis?.technicianCoverageLabel}
-                    href="/dispatch"
+                    href="/executive-command-center/technicians"
                   />
+                  {summary.organizationHealth ? (
+                    <MatrixStatCard
+                      label="Organization Health"
+                      value={
+                        summary.organizationHealth.overallScore == null
+                          ? "—"
+                          : String(summary.organizationHealth.overallScore)
+                      }
+                      status={
+                        /critical|at risk/i.test(
+                          summary.organizationHealth.classification,
+                        )
+                          ? "attention"
+                          : /watch/i.test(
+                                summary.organizationHealth.classification,
+                              )
+                            ? "watch"
+                            : summary.organizationHealth.overallScore == null
+                              ? "unavailable"
+                              : "ok"
+                      }
+                      trend={summary.organizationHealth.classification}
+                      href={summary.organizationHealth.href}
+                    />
+                  ) : null}
                 </div>
               </section>
+
+              {summary.enterpriseIntelligenceEnabled &&
+              summary.recommendations.length > 0 ? (
+                <section aria-labelledby="ecc-recommendations">
+                  <MatrixCard className="space-y-3 p-4">
+                    <h2
+                      id="ecc-recommendations"
+                      className="text-lg font-medium text-slate-100"
+                    >
+                      AI recommendations inbox
+                    </h2>
+                    <p className="text-sm text-slate-400">
+                      Open Decision Engine and predictive items — scores come
+                      from existing engines, not a new recommender.
+                    </p>
+                    <ul className="space-y-2">
+                      {summary.recommendations.map((r) => (
+                        <li
+                          key={r.id}
+                          className={`rounded-lg border px-3 py-2 text-sm ${severityClass(r.severity)}`}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="font-medium">{r.title}</p>
+                              <p className="mt-1 text-slate-400">{r.reason}</p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {r.source} · {r.severity}
+                              </p>
+                            </div>
+                            <Link
+                              href={r.href}
+                              className="text-cyan-300 hover:underline"
+                            >
+                              Open →
+                            </Link>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </MatrixCard>
+                </section>
+              ) : null}
 
               <section aria-labelledby="ecc-fleet-detail">
                 <MatrixCard className="space-y-3 p-4">
@@ -302,11 +370,11 @@ function ExecutiveCommandCenterBody() {
                         id="ecc-fleet-detail"
                         className="text-lg font-medium text-slate-100"
                       >
-                        Fleet health foundation
+                        Fleet Health dashboard
                       </h2>
                       <p className="text-sm text-slate-400">
-                        Explainable score from current Matrix signals — not a
-                        precision forecast.
+                        Explainable executive rollup from current Matrix signals —
+                        Organization Health is shown separately above.
                       </p>
                     </div>
                     <MatrixButton
@@ -480,7 +548,7 @@ function ExecutiveCommandCenterBody() {
                   id="ecc-panels"
                   className="mb-3 text-lg font-medium text-slate-100"
                 >
-                  Enterprise status
+                  Organization status
                 </h2>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {summary.panels.map((panel) => (
@@ -535,7 +603,7 @@ function ExecutiveCommandCenterBody() {
 export default function ExecutiveCommandCenterPage() {
   return (
     <MatrixShell
-      title="Executive Command Center"
+      title="Executive Intelligence"
       activePath="/executive-command-center"
     >
       <MatrixAuthGuard

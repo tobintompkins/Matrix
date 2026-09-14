@@ -350,7 +350,9 @@ The Matrix landing experience is presented to users as the **Service Hub**.
 ### Patch progress
 - **51A** — Complete (AI Operations → Automations → Predictive Maintenance → Decision Engine → Executive Command Center)
 - **51B.1** — Implemented (Customer Portal ↔ Service Hub integration; shared context, typed customer status, customer Assist mode, Hub visibility markers)
-- **51B.2** — Next: Mobile Technician Experience
+- **51C.1** — Implemented (Enterprise Intelligence aggregation on ECC; org-health bridge, parts/tech/customer analytics, Assist insights, report builder)
+- **51C.2** — Implemented (Predictive Business Analytics center on ECC; demand/PM/parts/capacity forecasts, scenarios, accuracy, data quality)
+- **51B.2** — In progress: Mobile Technician Experience (51B.2.1–51B.2.4 applied: work queue, Field access, signed-in identity, per-user offline storage). Remaining gates: handler-level authorization, legacy `matrix-field-offline-v1` / `tech-toby` migration, sign-out/offline revocation, and verify download/reopen, interrupted sync, conflicts, notes/photos/signatures, and completion on real devices. Not production-ready. No Onyx in this item.
 
 ---
 
@@ -390,3 +392,8 @@ The Matrix landing experience is presented to users as the **Service Hub**.
 ---
 
 *PATCH-19 Enterprise Foundation — documentation only. Existing prototype UI and features remain unchanged.*
+
+
+### 51B.2.2 delivery checkpoint
+- Field Access Checks: applied. Signed-out users still go to sign-in. Configured technician/admin roles with VIEW_FIELD may enter /field. Customer, missing, and invalid roles get 403. Identity lookup failure returns 503. Live Clerk role checks still need a signed-in browser pass.
+- 51B.2 remains in progress. Demo identity replacement, offline isolation, handler-level authorization and real-device workflow validation remain open.
