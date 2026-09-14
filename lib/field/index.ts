@@ -8,10 +8,12 @@ export {
 export {
   IndexedDbOfflineStore,
   MemoryOfflineStore,
+  clearOfflineStoreScope,
   getOfflineStore,
   newEntityId,
   newOperationId,
   resetOfflineStoreForTests,
+  setOfflineStoreScope,
   useMemoryOfflineStoreForTests,
 } from "./store";
 export {

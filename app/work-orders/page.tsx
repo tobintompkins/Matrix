@@ -11,8 +11,8 @@ export default function WorkOrdersPage() {
         <MatrixAuthGuard requiredPermissions={["VIEW_WORK_ORDERS"]}>
           <MatrixPageHeader
             title="Work Orders"
-            subtitle="Enterprise work order management for service, PM, installs, and customer visits."
-            breadcrumbs={["Matrix", "Service Platform", "Work Orders"]}
+            subtitle="Track service, PM, installs, and customer visits."
+            breadcrumbs={["Matrix", "Workspace", "Work Orders"]}
             actions={
               <div className="flex flex-wrap gap-2">
                 <MatrixButton href="/work-orders/new" variant="primary" size="md">

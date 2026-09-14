@@ -8,7 +8,7 @@ Secure customer self-service built on the Patch 42 portal foundation.
 |-------|--------|
 | **51A** (AI Ops → Executive Command Center) | Complete |
 | **51B.1** (Customer Portal ↔ Service Hub integration) | Implemented |
-| **51B.2** | Next — Mobile Technician Experience |
+| **51B.2** | In progress — Mobile Technician Experience (51B.2.1–51B.2.4: work queue, Field access, signed-in identity, per-user offline storage). Remaining: handler-level authorization, legacy store/`tech-toby` migration, sign-out revocation, real-device verification. |
 
 ## Architecture
 
@@ -137,7 +137,8 @@ Connects the Customer Portal to the same service-call records used by Service Hu
 `postCustomerVisibleUpdate()` in service-dispatch — audited, visible in portal timeline only when `visibleToCustomer` is true.
 
 ### Next
-**51B.2 — Mobile Technician Experience**
+**51B.2 — Mobile Technician Experience (in progress)**  
+Parts 51B.2.1–51B.2.3 added the Field next-job card, a Field entry gate on Clerk `matrixRole` + `VIEW_FIELD` (no development SUPER_ADMIN fallback), and signed-in Field identity (Clerk user ID as owner; `technicianName` or full name for assignment matching). It is not a complete mobile release. Remaining gates: user-scoped offline storage, handler-level authorization, legacy `tech-toby` migration, sign-out/offline revocation, and real-device verification of offline download/reopen, interrupted sync, conflicts, notes/photos/signatures, and completion. No Onyx in this item. The entry gate does not authorize cached/offline Field pages. Name matching is not authorization.
 
 ## Migration
 

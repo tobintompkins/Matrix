@@ -46,7 +46,7 @@ export default function WarehouseHubPage() {
   return (
     <MatrixShell title="Warehouses" activePath="/inventory">
       <MatrixPageHeader
-        title="Enterprise Warehouse Management"
+        title="Warehouse Management"
         subtitle="Multi-location inventory, receiving, transfers, truck restock, and cycle counts."
         breadcrumbs={["Matrix", "Inventory", "Warehouses"]}
         actions={

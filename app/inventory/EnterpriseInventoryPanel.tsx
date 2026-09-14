@@ -180,7 +180,7 @@ export default function EnterpriseInventoryPanel() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white">Enterprise Parts & Inventory</h2>
+          <h2 className="text-xl font-bold text-white">Parts & Inventory</h2>
           <p className="mt-1 text-sm text-slate-400">
             Multi-location stock, reservations, purchase requests, and barcode-ready APIs.
           </p>

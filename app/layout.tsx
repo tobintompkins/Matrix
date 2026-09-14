@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Matrix — Enterprise Service Platform",
+  title: "Matrix — Service Workspace",
   description:
-    "RISO field service platform for fleet, inventory, scanner, and parts workflows.",
+    "RISO field service workspace for fleet, inventory, scanner, and parts workflows.",
   applicationName: "Matrix Field",
   appleWebApp: {
     capable: true,

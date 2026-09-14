@@ -10,7 +10,7 @@ export default function NotificationsPage() {
         <MatrixPageHeader
           title="Notification Center"
           subtitle="Smart maintenance reminders, completions, and schedule changes."
-          breadcrumbs={["Matrix", "Service Platform", "Notifications"]}
+          breadcrumbs={["Matrix", "Workspace", "Notifications"]}
         />
         <NotificationsCenterPanel />
       </MatrixAuthGuard>

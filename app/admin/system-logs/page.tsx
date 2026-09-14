@@ -97,7 +97,7 @@ export default function SystemLogsDashboardPage() {
   return (
     <AdminShell
       title="System Logs"
-      subtitle="Enterprise audit exploration, security events, API and error diagnostics. Sensitive values are redacted server-side."
+      subtitle="Audit history, security events, API and error diagnostics. Sensitive values are redacted server-side."
     >
       <div className="mb-4 flex flex-wrap gap-2">
         <Link href="/admin/system-logs/events">

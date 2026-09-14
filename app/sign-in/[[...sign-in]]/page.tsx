@@ -5,7 +5,7 @@ export default function SignInPage() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-4 py-12 text-white">
       <div className="mb-10 text-center">
         <p className="text-sm uppercase tracking-[0.35em] text-cyan-400">
-          Enterprise Service Platform
+          Service Workspace
         </p>
         <h1 className="mt-3 text-5xl font-bold tracking-widest text-cyan-400">
           MATRIX

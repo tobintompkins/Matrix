@@ -1,5 +1,8 @@
 /**
  * Pluggable offline store — IndexedDB in browser, memory in tests.
+ *
+ * Field screens set a scope from the signed-in Clerk user before mounting.
+ * The old unscoped database is intentionally left untouched for review.
  */
 
 export type StoreName =
@@ -76,17 +79,45 @@ export class MemoryOfflineStore implements OfflineStore {
   }
 }
 
-const DB_NAME = "matrix-field-offline-v1";
+const LEGACY_DB_NAME = "matrix-field-offline-v1";
 const DB_VERSION = 1;
+let activeScope: string | null = null;
+let testStore: OfflineStore | null = null;
+const browserStores = new Map<string, OfflineStore>();
+const memoryStores = new Map<string, OfflineStore>();
 
-function openDb(): Promise<IDBDatabase> {
+function scopeKey(userId: string | null): string {
+  return userId ? `user:${userId}` : "legacy";
+}
+
+function dbName(userId: string | null): string {
+  return userId
+    ? `matrix-field-offline-v2-${encodeURIComponent(userId)}`
+    : LEGACY_DB_NAME;
+}
+
+/** Select storage for the active signed-in Field user. Does not migrate or erase legacy data. */
+export function setOfflineStoreScope(userId: string): void {
+  if (!userId.trim()) {
+    throw new Error(
+      "An authenticated Field user ID is required for offline storage.",
+    );
+  }
+  activeScope = userId;
+}
+
+export function clearOfflineStoreScope(): void {
+  activeScope = null;
+}
+
+function openDb(name: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDB.open(name, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      for (const name of STORE_NAMES) {
-        if (!db.objectStoreNames.contains(name)) {
-          db.createObjectStore(name, { keyPath: "id" });
+      for (const storeName of STORE_NAMES) {
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.createObjectStore(storeName, { keyPath: "id" });
         }
       }
     };
@@ -106,8 +137,10 @@ function idbReq<T>(request: IDBRequest<T>): Promise<T> {
 export class IndexedDbOfflineStore implements OfflineStore {
   private dbPromise: Promise<IDBDatabase> | null = null;
 
+  constructor(private readonly name: string) {}
+
   private db(): Promise<IDBDatabase> {
-    if (!this.dbPromise) this.dbPromise = openDb();
+    if (!this.dbPromise) this.dbPromise = openDb(this.name);
     return this.dbPromise;
   }
 
@@ -161,18 +194,23 @@ export class IndexedDbOfflineStore implements OfflineStore {
   }
 }
 
-let sharedStore: OfflineStore | null = null;
-let testStore: OfflineStore | null = null;
-
 export function getOfflineStore(): OfflineStore {
   if (testStore) return testStore;
-  if (sharedStore) return sharedStore;
+  const key = scopeKey(activeScope);
   if (typeof indexedDB !== "undefined") {
-    sharedStore = new IndexedDbOfflineStore();
-  } else {
-    sharedStore = new MemoryOfflineStore();
+    let store = browserStores.get(key);
+    if (!store) {
+      store = new IndexedDbOfflineStore(dbName(activeScope));
+      browserStores.set(key, store);
+    }
+    return store;
   }
-  return sharedStore;
+  let store = memoryStores.get(key);
+  if (!store) {
+    store = new MemoryOfflineStore();
+    memoryStores.set(key, store);
+  }
+  return store;
 }
 
 /** Test helper — inject memory store and reset. */
@@ -184,7 +222,9 @@ export function useMemoryOfflineStoreForTests(store?: MemoryOfflineStore): Memor
 
 export function resetOfflineStoreForTests(): void {
   testStore = null;
-  sharedStore = null;
+  activeScope = null;
+  browserStores.clear();
+  memoryStores.clear();
 }
 
 export function newOperationId(): string {

@@ -171,7 +171,7 @@ export default function EnterpriseCrmPanel() {
 
       {tab === "accounts" ? (
         <MatrixCard
-          title="Enterprise accounts"
+          title="Customer accounts"
           subtitle="Parent/child customers, sites, and fleet assets."
         >
           <div className="mb-6 grid gap-3 sm:grid-cols-3">

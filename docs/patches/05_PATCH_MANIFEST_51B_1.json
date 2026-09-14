@@ -13,7 +13,7 @@
     "51A.5 Part 2",
     "51A.5 Part 3"
   ],
-  "nextPatch": "51B.2 — Mobile Technician Experience",
+  "nextPatch": "51B.2 — Mobile Technician Experience (in progress; 51B.2.1 applied)",
   "branch": "patch/51b-1-customer-portal-integration",
   "safetyRecord": "docs/PATCH_51B1_SAFETY.md",
   "instructions": [

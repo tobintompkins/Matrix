@@ -12,17 +12,17 @@ export default function ServiceCallsPage() {
           <MatrixPageHeader
             title="Service Calls"
             subtitle="Create, assign, track, and close printer service calls."
-            breadcrumbs={["Matrix", "Service Platform", "Service Calls"]}
+            breadcrumbs={["Matrix", "Workspace", "Service Calls"]}
             actions={
               <div className="flex flex-wrap gap-2">
                 <MatrixButton href="/service-calls/new" variant="primary" size="md">
-                  New Service Ticket
+                  New Service Call
                 </MatrixButton>
                 <MatrixButton href="/dispatch" variant="secondary" size="md">
                   Dispatch Board
                 </MatrixButton>
                 <MatrixButton href="/dispatch/mobile" variant="secondary" size="md">
-                  Tech Mobile
+                  Field Work
                 </MatrixButton>
                 <MatrixButton href="/digital-twin" variant="secondary" size="md">
                   Digital Twin

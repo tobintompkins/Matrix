@@ -12,7 +12,7 @@ export default function DigitalTwinPage() {
           <MatrixPageHeader
             title="Digital Twin"
             subtitle="Machine profiles for the SFX / MPX fleet — identity, health, PM, parts, and service context."
-            breadcrumbs={["Matrix", "Service Platform", "Digital Twin"]}
+            breadcrumbs={["Matrix", "Workspace", "Digital Twin"]}
             actions={
               <MatrixButton href="/scanner" variant="secondary" size="md">
                 Open Scanner

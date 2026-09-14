@@ -15,7 +15,7 @@ export default function MaintenancePage() {
           <MatrixPageHeader
             title="Preventive Maintenance"
             subtitle="Impression-meter PM cleaning counts — overdue, due, history, and per-machine intervals (Prisma)."
-            breadcrumbs={["Matrix", "Service Platform", "Preventive Maintenance"]}
+            breadcrumbs={["Matrix", "Workspace", "Preventive Maintenance"]}
             actions={
               <div className="flex flex-wrap gap-2">
                 <MatrixButton href="/maintenance/counts" variant="primary" size="md">

@@ -18,8 +18,8 @@ export default function InventoryPage() {
       <WorkflowPageShell current="inventory">
         <MatrixPageHeader
           title="Inventory"
-          subtitle="Enterprise warehouse management, parts catalog, multi-location stock, truck inventory, receiving, transfers, and purchase requests."
-          breadcrumbs={["Matrix", "Service Platform", "Inventory"]}
+          subtitle="Warehouses, parts catalog, multi-location stock, truck inventory, receiving, transfers, and purchase requests."
+          breadcrumbs={["Matrix", "Workspace", "Inventory"]}
           actions={
             <div className="flex flex-wrap gap-2">
               <MatrixButton href="/inventory/warehouses" variant="primary" size="md">

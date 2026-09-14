@@ -129,7 +129,7 @@ export default function FleetPage() {
         <MatrixPageHeader
           title="Fleet"
           subtitle="Monitor printer assets across customer sites and service locations."
-          breadcrumbs={["Matrix", "Service Platform", "Fleet"]}
+          breadcrumbs={["Matrix", "Workspace", "Fleet"]}
           actions={
             <MatrixButton href="/register-printer" variant="primary" size="md">
               Register Printer

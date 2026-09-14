@@ -101,7 +101,7 @@ export default function AdminOverviewPage() {
   return (
     <AdminShell
       title="Administration Center"
-      subtitle="Enterprise administration for access, operational data, insights, system health, imports/exports, and audited maintenance tools."
+      subtitle="Users, access, operational data, system health, imports/exports, and audited maintenance tools."
     >
       <p className="mb-4 text-sm text-slate-400">
         Matrix administrative tools never provide unrestricted SQL, command-shell,

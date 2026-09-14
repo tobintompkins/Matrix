@@ -639,7 +639,7 @@ export default function GuidedDiagramOrderingForm() {
 
       {selectedCallout && (
         <SectionCard
-          title="Enterprise Inventory (Guided Diagram)"
+          title="Parts availability"
           description="Model → Assembly → Diagram → Callout populates catalog and live availability."
         >
           {enterprisePart ? (
@@ -735,8 +735,8 @@ export default function GuidedDiagramOrderingForm() {
         </div>
 
         <p className="mt-4 text-xs text-slate-500">
-          Enterprise availability uses the Patch 38 inventory catalog. Diagram
-          images and live DB persistence continue in future releases.
+          Availability uses the inventory catalog. Diagram images and live
+          database persistence continue in future releases.
         </p>
       </SectionCard>
     </div>

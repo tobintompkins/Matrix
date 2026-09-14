@@ -4,9 +4,9 @@ import TechnicianMobileWorkflow from "../TechnicianMobileWorkflow";
 
 export default function DispatchMobilePage() {
   return (
-    <MatrixShell title="Tech Mobile" activePath="/dispatch">
+    <MatrixShell title="Field Work" activePath="/dispatch">
       <MatrixPageHeader
-        title="Technician mobile workflow"
+        title="Field Work"
         subtitle="Large touch controls for accept, travel, diagnose, parts, and completion."
         breadcrumbs={["Matrix", "Dispatch", "Mobile"]}
         actions={

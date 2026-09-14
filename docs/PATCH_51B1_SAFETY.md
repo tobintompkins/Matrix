@@ -36,4 +36,4 @@ See `docs/patches/05_PATCH_MANIFEST_51B_1.json`.
 
 - **Type:** integration (not a second portal)
 - **Depends on:** 51A.1 → 51A.5 Part 3 (complete)
-- **Next:** 51B.2 — Mobile Technician Experience
+- **Next:** 51B.2 — Mobile Technician Experience (in progress; 51B.2.1 work queue applied)

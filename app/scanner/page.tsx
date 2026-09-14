@@ -10,7 +10,7 @@ export default function ScannerPage() {
         <MatrixPageHeader
           title="Scanner / Lookup"
           subtitle="Scan or enter QR/barcode values to find parts, printers, inventory, and diagram actions."
-          breadcrumbs={["Matrix", "Service Platform", "Scanner"]}
+          breadcrumbs={["Matrix", "Workspace", "Scanner"]}
           actions={
             <MatrixButton href="/dashboard" variant="secondary" size="md">
               Back to Service Hub

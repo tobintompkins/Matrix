@@ -132,7 +132,7 @@ export default function DecisionCenterPage() {
   }
 
   return (
-    <MatrixShell title="Enterprise Decision Engine" activePath="/ai-operations/decisions">
+    <MatrixShell title="Decision Engine" activePath="/ai-operations/decisions">
       <MatrixAuthGuard requiredPermissions={["VIEW_DECISION_CENTER"]}>
         <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
           <header className="space-y-2">
@@ -140,7 +140,7 @@ export default function DecisionCenterPage() {
               AI Operations
             </p>
             <h1 className="text-2xl font-semibold text-slate-100">
-              Enterprise Decision Engine
+              Decision Engine
             </h1>
             <p className="max-w-3xl text-sm text-slate-400">
               Ranked recommendations from fleet, service, PM, predictive, and

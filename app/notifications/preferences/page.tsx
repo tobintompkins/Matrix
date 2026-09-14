@@ -14,7 +14,7 @@ export default function NotificationPreferencesPage() {
           subtitle="In-app, daily, and weekly summaries. Email and SMS channels are reserved for later."
           breadcrumbs={[
             "Matrix",
-            "Service Platform",
+            "Workspace",
             "Notifications",
             "Preferences",
           ]}
