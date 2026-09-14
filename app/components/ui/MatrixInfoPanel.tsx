@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import AppCard from "./AppCard";
 import { cn } from "./utils";
 
 export type MatrixInfoPanelProps = {
@@ -17,22 +18,14 @@ export default function MatrixInfoPanel({
   className,
 }: MatrixInfoPanelProps) {
   return (
-    <aside
-      className={cn(
-        "rounded-xl border border-slate-800/90 bg-slate-900/80 p-5 shadow-sm shadow-black/10 md:p-6",
-        className,
-      )}
+    <AppCard
+      as="aside"
+      title={title}
+      description={subtitle}
+      footer={footer}
+      className={cn(className)}
     >
-      <div className="mb-4">
-        <h3 className="text-base font-semibold text-white md:text-lg">{title}</h3>
-        {subtitle && (
-          <p className="mt-1 text-sm text-slate-400">{subtitle}</p>
-        )}
-      </div>
-      <div>{children}</div>
-      {footer && (
-        <div className="mt-5 border-t border-slate-800/80 pt-4">{footer}</div>
-      )}
-    </aside>
+      {children}
+    </AppCard>
   );
 }

@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/ai-operations/layout,_N_T_/ai-operations/predictive-maintenance/layout,_N_T_/ai-operations/predictive-maintenance/alerts/layout,_N_T_/ai-operations/predictive-maintenance/alerts/page,_N_T_/ai-operations/predictive-maintenance/alerts"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/ai-operations/predictive-maintenance/alerts/__PAGE__",
+    "/ai-operations/predictive-maintenance/alerts",
+    "/ai-operations/predictive-maintenance",
+    "/ai-operations",
+    "/_index",
+    "/_head"
+  ]
+}

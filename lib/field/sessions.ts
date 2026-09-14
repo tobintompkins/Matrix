@@ -40,11 +40,12 @@ export async function getActiveSessionForTechnician(
 
 export async function getSessionForWorkOrder(
   workOrderId: string,
+  technicianId?: string,
 ): Promise<WorkSession | null> {
   const sessions = await getOfflineStore().getAll<WorkSession & { id: string }>("sessions");
   return (
     sessions
-      .filter((s) => s.workOrderId === workOrderId)
+      .filter((s) => s.workOrderId === workOrderId && (!technicianId || s.technicianId === technicianId))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null
   );
 }
@@ -81,7 +82,7 @@ export async function applyWorkSessionAction(input: {
   }
 
   const session =
-    (await getSessionForWorkOrder(input.workOrderId)) ??
+    (await getSessionForWorkOrder(input.workOrderId, input.technicianId)) ??
     ({
       id: newEntityId("wses"),
       workOrderId: input.workOrderId,

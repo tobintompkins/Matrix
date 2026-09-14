@@ -1,0 +1,3 @@
+{
+  "/api/portal/documents/[id]/download/route": "app/api/portal/documents/[id]/download/route.js"
+}

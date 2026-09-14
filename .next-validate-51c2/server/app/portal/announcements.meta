@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/portal/layout,_N_T_/portal/announcements/layout,_N_T_/portal/announcements/page,_N_T_/portal/announcements"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/portal/announcements/__PAGE__",
+    "/portal/announcements",
+    "/portal",
+    "/_index",
+    "/_head"
+  ]
+}

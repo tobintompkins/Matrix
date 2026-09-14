@@ -23,11 +23,11 @@ function Body() {
     <div className="mx-auto max-w-7xl space-y-6 px-1 py-2">
       <header>
         <h1 className="text-2xl font-semibold text-slate-100">
-          Customer health
+          Customer reliability
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          Customer risk from open/critical service calls and predictive machine
-          risk — not invented scores.
+          Deterministic 0–100 reliability score from open/critical service calls,
+          predictive machine risk, and repeat-site pressure.
         </p>
       </header>
       <ExecutiveNav range={range} onRangeChange={setRange} />
@@ -53,7 +53,8 @@ function Body() {
               <thead className="text-slate-400">
                 <tr>
                   <th className="px-2 py-2">Customer</th>
-                  <th className="px-2 py-2">Risk</th>
+                  <th className="px-2 py-2">Reliability</th>
+                  <th className="px-2 py-2">Label</th>
                   <th className="px-2 py-2">Open calls</th>
                   <th className="px-2 py-2">Critical</th>
                   <th className="px-2 py-2">Machines at risk</th>
@@ -67,6 +68,7 @@ function Body() {
                         {c.name}
                       </Link>
                     </td>
+                    <td className="px-2 py-2 font-medium">{c.reliabilityScore}</td>
                     <td className={`px-2 py-2 ${riskClass(c.riskLabel)}`}>
                       {c.riskLabel}
                     </td>
@@ -86,7 +88,7 @@ function Body() {
 
 export default function ExecutiveCustomersPage() {
   return (
-    <MatrixShell title="Customer health" activePath="/executive-command-center">
+    <MatrixShell title="Customer reliability" activePath="/executive-command-center">
       <MatrixAuthGuard requiredPermissions={["VIEW_EXECUTIVE_COMMAND_CENTER"]}>
         <Suspense fallback={<p className="text-sm text-slate-400">Loading…</p>}>
           <Body />

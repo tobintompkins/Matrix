@@ -1,8 +1,10 @@
 "use client";
+import { useFieldIdentity } from "@/app/field/FieldIdentityProvider";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import FieldShell from "../FieldShell";
+import { prioritizeMobileWork } from "@/lib/field/mobile-work-queue";
 import {
   downloadWorkOrderPackage,
   downloadWorkOrders,
@@ -18,8 +20,6 @@ import {
   listWorkOrders,
 } from "@/lib/work-orders";
 
-const TECH = "Toby Tompkins";
-const TECH_ID = "tech-toby";
 
 const FILTERS: Array<{ id: FieldWorkFilter | "ALL"; label: string }> = [
   { id: "ALL", label: "All" },
@@ -34,15 +34,19 @@ const FILTERS: Array<{ id: FieldWorkFilter | "ALL"; label: string }> = [
 ];
 
 export default function FieldWorkListPage() {
+  const { technicianName: TECH, userId: TECH_ID } = useFieldIdentity();
   const [filter, setFilter] = useState<FieldWorkFilter | "ALL">("TODAY");
   const [search, setSearch] = useState("");
   const [packages, setPackages] = useState<OfflinePackage[]>([]);
   const [tick, setTick] = useState(0);
   const [notice, setNotice] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    void listOfflinePackages(TECH_ID).then(setPackages);
-  }, [tick]);
+    let current = true;
+    void listOfflinePackages(TECH_ID).then(items => { if (current) setPackages(items); }).catch(() => { if (current) setNotice("Could not read saved downloads. Retry the page before going offline."); });
+    return () => { current = false; };
+  }, [tick, TECH_ID]);
 
   const orders = useMemo(() => {
     void tick;
@@ -50,9 +54,23 @@ export default function FieldWorkListPage() {
   }, [tick]);
 
   const visible = useMemo(
-    () => filterFieldWorkOrders(orders, filter, packages, search, TECH),
-    [orders, filter, packages, search],
+    () => prioritizeMobileWork(filterFieldWorkOrders(orders, filter, packages, search, TECH)),
+    [orders, filter, packages, search, TECH],
   );
+
+  async function runDownload(action: () => Promise<void>) {
+    if (downloading) return;
+    setDownloading(true);
+    setNotice("Saving work for offline use…");
+    try {
+      await action();
+    } catch {
+      setNotice("Download did not finish. Some jobs may have saved. Check each job's Offline status before retrying.");
+    } finally {
+      setDownloading(false);
+      setTick(t => t + 1);
+    }
+  }
 
   async function downloadOne(id: string) {
     const wo = orders.find((w) => w.id === id);
@@ -78,6 +96,7 @@ export default function FieldWorkListPage() {
 
   return (
     <FieldShell title="Assigned Work">
+      <p className="mb-4 text-sm text-slate-300">Find a job, open its details, or save it before going offline. Active and urgent work appears first.</p>
       <label className="sr-only" htmlFor="field-work-search">
         Search work orders
       </label>
@@ -90,13 +109,12 @@ export default function FieldWorkListPage() {
         className="mb-4 min-h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 text-base text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
       />
 
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Work filters">
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Work filters">
         {FILTERS.map((f) => (
           <button
             key={f.id}
             type="button"
-            role="tab"
-            aria-selected={filter === f.id}
+            aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
             className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold ${
               filter === f.id
@@ -112,22 +130,25 @@ export default function FieldWorkListPage() {
       <div className="mb-4 flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => void downloadToday()}
+          onClick={() => void runDownload(downloadToday)}
+          disabled={downloading}
           className="min-h-11 rounded-lg border border-slate-600 px-3 text-xs font-semibold text-slate-200"
         >
           Download Today
         </button>
         <button
           type="button"
-          onClick={() => void downloadWeek()}
+          onClick={() => void runDownload(downloadWeek)}
+          disabled={downloading}
           className="min-h-11 rounded-lg border border-slate-600 px-3 text-xs font-semibold text-slate-200"
         >
           Download This Week
         </button>
       </div>
 
+      <p className="mb-3 text-sm text-slate-400" role="status">{visible.length} matching work order(s)</p>
       {notice && (
-        <p className="mb-4 rounded-xl border border-cyan-800/50 bg-cyan-950/40 px-4 py-3 text-sm text-cyan-100">
+        <p role="status" className="mb-4 rounded-xl border border-cyan-800/50 bg-cyan-950/40 px-4 py-3 text-sm text-cyan-100">
           {notice}
         </p>
       )}
@@ -135,7 +156,8 @@ export default function FieldWorkListPage() {
       <ul className="space-y-3">
         {visible.length === 0 && (
           <li className="rounded-xl border border-dashed border-slate-700 px-4 py-10 text-center text-sm text-slate-500">
-            No work orders match this filter.
+            <p>No work orders match this filter.</p>
+            <button type="button" onClick={() => { setFilter("ALL"); setSearch(""); }} className="mt-3 min-h-11 rounded-lg border border-slate-600 px-4 text-cyan-300">Show all my work</button>
           </li>
         )}
         {visible.map((wo) => {
@@ -210,7 +232,8 @@ export default function FieldWorkListPage() {
                   </Link>
                   <button
                     type="button"
-                    onClick={() => void downloadOne(wo.id)}
+                    onClick={() => void runDownload(() => downloadOne(wo.id))}
+                    disabled={downloading}
                     className="min-h-11 rounded-xl border border-slate-600 px-3 text-sm font-semibold text-slate-200"
                   >
                     {offline ? "Refresh Offline" : "Download Offline"}

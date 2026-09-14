@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/inventory/layout,_N_T_/inventory/truck-restock/layout,_N_T_/inventory/truck-restock/page,_N_T_/inventory/truck-restock"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/inventory/truck-restock/__PAGE__",
+    "/inventory/truck-restock",
+    "/inventory",
+    "/_index",
+    "/_head"
+  ]
+}

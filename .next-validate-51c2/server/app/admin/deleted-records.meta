@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admin/layout,_N_T_/admin/deleted-records/layout,_N_T_/admin/deleted-records/page,_N_T_/admin/deleted-records"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admin/deleted-records/__PAGE__",
+    "/admin/deleted-records",
+    "/admin",
+    "/_index",
+    "/_head"
+  ]
+}

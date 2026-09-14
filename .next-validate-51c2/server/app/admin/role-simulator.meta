@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admin/layout,_N_T_/admin/role-simulator/layout,_N_T_/admin/role-simulator/page,_N_T_/admin/role-simulator"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admin/role-simulator/__PAGE__",
+    "/admin/role-simulator",
+    "/admin",
+    "/_index",
+    "/_head"
+  ]
+}

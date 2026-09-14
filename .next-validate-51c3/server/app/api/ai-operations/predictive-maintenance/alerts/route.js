@@ -1,0 +1,10 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/ai-operations/predictive-maintenance/alerts/route.js")
+R.c("server/chunks/lib_auth_permissions_ts_1qwthzt._.js")
+R.c("server/chunks/node_modules_next_dist_1_lpwll._.js")
+R.c("server/chunks/[root-of-the-server]__09c-8fi._.js")
+R.c("server/chunks/node_modules_0t5_ff-._.js")
+R.c("server/chunks/[root-of-the-server]__202_lon._.js")
+R.c("server/chunks/[root-of-the-server]__1r01cl_._.js")
+R.c("server/chunks/1jng_app_api_ai-operations_predictive-maintenance_alerts_route_actions_088nk2t.js")
+R.m(633901)
+module.exports=R.m(633901).exports

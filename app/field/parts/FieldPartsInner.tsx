@@ -1,4 +1,5 @@
 "use client";
+import { useFieldIdentity } from "@/app/field/FieldIdentityProvider";
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -6,11 +7,10 @@ import FieldShell from "../FieldShell";
 import { enqueueOperation } from "@/lib/field";
 import { listCatalog, listBalances, quantityAvailable } from "@/lib/inventory";
 
-const TECH = "Toby Tompkins";
-const TECH_ID = "tech-toby";
 const TRUCK = "loc-truck-alex";
 
 export default function FieldPartsInner() {
+  const { technicianName: TECH, userId: TECH_ID } = useFieldIdentity();
   const params = useSearchParams();
   const workOrderId = params.get("workOrderId") ?? "";
   const [query, setQuery] = useState("");

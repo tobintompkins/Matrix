@@ -5,7 +5,10 @@ export type {
   MatrixButtonVariant,
 } from "./MatrixButton";
 
-export { default as MatrixCard } from "./MatrixCard";
+export { default as AppCard } from "./AppCard";
+export type { AppCardProps } from "./AppCard";
+
+export { default as MatrixCard, MatrixCardChrome } from "./MatrixCard";
 export type { MatrixCardProps } from "./MatrixCard";
 
 export { default as MatrixEmptyState } from "./MatrixEmptyState";
@@ -42,11 +45,36 @@ export {
   inventoryStatusToVariant,
 } from "./MatrixStatusBadge";
 
+export { default as StatusBadge, statusToVariant } from "./StatusBadge";
+export type { StatusBadgeProps, StatusBadgeStatus } from "./StatusBadge";
+
 export { default as MatrixTable } from "./MatrixTable";
 export type {
   MatrixTableColumn,
   MatrixTableProps,
   MatrixTableStatusConfig,
 } from "./MatrixTable";
+
+export { default as MatrixTableToolbar } from "./MatrixTableToolbar";
+export type {
+  MatrixTableToolbarFilterOption,
+  MatrixTableToolbarProps,
+} from "./MatrixTableToolbar";
+
+export { default as EnterpriseTableToolbar } from "./EnterpriseTableToolbar";
+export { default as DataTableToolbar } from "./EnterpriseTableToolbar";
+export { default as TableFilterBar } from "./EnterpriseTableToolbar";
+export type {
+  EnterpriseFilterOption,
+  EnterpriseSelectFilter,
+  EnterpriseTextFilter,
+  EnterpriseTableToolbarProps,
+} from "./EnterpriseTableToolbar";
+
+export { exportRowsAsCsv, rowsToCsv, downloadCsv } from "./exportCsv";
+export type { CsvColumn } from "./exportCsv";
+
+export { useColumnVisibility } from "./useColumnVisibility";
+export type { ColumnVisibilityOption } from "./useColumnVisibility";
 
 export { cn } from "./utils";

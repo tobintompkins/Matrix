@@ -1,0 +1,3 @@
+{
+  "/api/ai-operations/insights/[id]/resolve/route": "app/api/ai-operations/insights/[id]/resolve/route.js"
+}

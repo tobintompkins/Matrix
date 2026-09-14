@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/portal/layout,_N_T_/portal/printers/layout,_N_T_/portal/printers/page,_N_T_/portal/printers"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/portal/printers/__PAGE__",
+    "/portal/printers",
+    "/portal",
+    "/_index",
+    "/_head"
+  ]
+}

@@ -4,24 +4,31 @@ import { cn } from "./utils";
 export type MatrixPageHeaderProps = {
   title: string;
   subtitle?: string;
+  description?: string;
   breadcrumbs?: string[];
   actions?: ReactNode;
   className?: string;
 };
 
+/**
+ * Standard in-page header — clear title, muted description, responsive actions.
+ */
 export default function MatrixPageHeader({
   title,
   subtitle,
+  description,
   breadcrumbs,
   actions,
   className,
 }: MatrixPageHeaderProps) {
+  const supportingText = description ?? subtitle;
+
   return (
-    <div className={cn("mb-6 md:mb-8", className)}>
+    <div className={cn("matrix-page-heading", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav
           aria-label="Breadcrumb"
-          className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500"
+          className="mb-2 flex flex-wrap items-center gap-2 text-xs text-[color:var(--matrix-muted)]"
         >
           {breadcrumbs.map((crumb, index) => (
             <span key={`${crumb}-${index}`} className="flex items-center gap-2">
@@ -29,8 +36,8 @@ export default function MatrixPageHeader({
               <span
                 className={
                   index === breadcrumbs.length - 1
-                    ? "text-cyan-400"
-                    : "text-slate-500"
+                    ? "text-[color:var(--matrix-accent)]"
+                    : undefined
                 }
               >
                 {crumb}
@@ -40,19 +47,17 @@ export default function MatrixPageHeader({
         </nav>
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">
-          <h2 className="text-xl font-semibold tracking-tight text-white md:text-2xl">
-            {title}
-          </h2>
-          {subtitle && (
-            <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-400">
-              {subtitle}
-            </p>
+          <h2 className="matrix-page-title">{title}</h2>
+          {supportingText && (
+            <p className="matrix-muted mt-1.5 max-w-3xl">{supportingText}</p>
           )}
         </div>
         {actions && (
-          <div className="flex flex-wrap items-center gap-2">{actions}</div>
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+            {actions}
+          </div>
         )}
       </div>
     </div>

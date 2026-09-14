@@ -214,6 +214,7 @@ describe("executive analytics date range (Part 2)", () => {
           activeTechnicians: 1,
           fleetHealthScore: 80,
           openDecisions: 0,
+          organizationHealthScore: null,
         },
         series: [],
         seriesEmpty: true,
@@ -224,9 +225,13 @@ describe("executive analytics date range (Part 2)", () => {
           status: "AVAILABLE",
           openCalls: 1,
           criticalCalls: 0,
+          closedInRange: 2,
+          completionRate: 66.7,
           workloadHours: 2,
+          capacityHours: 160,
+          workloadVsCapacityPct: 1.3,
           territory: "ME",
-          href: "/dispatch",
+          href: "/field",
         },
       ],
       customers: [],
@@ -236,7 +241,17 @@ describe("executive analytics date range (Part 2)", () => {
         criticalRisk: 0,
         openAlerts: 0,
         dueSoon14d: 0,
+        trendSeries: [],
         topRiskMachines: [],
+      },
+      partsConsumption: {
+        totalConsumed: 0,
+        distinctParts: 0,
+        issueEvents: 0,
+        empty: true,
+        emptyMessage: "No CONSUME transactions",
+        topParts: [],
+        href: "/inventory",
       },
       aiInsights: {
         active: 0,
@@ -354,5 +369,53 @@ describe("executive reporting Part 3", () => {
     const pdf = exportExecutiveReport(bundle, "pdf");
     assert.equal(pdf.mime, "application/pdf");
     assert.ok(pdf.content.includes("MATRIX EXECUTIVE REPORT"));
+  });
+});
+
+describe("enterprise intelligence 51C.1", () => {
+  it("computes customer reliability with explainable penalties", async () => {
+    const { computeCustomerReliabilityScore } = await import(
+      "./customer-reliability"
+    );
+    const healthy = computeCustomerReliabilityScore({
+      openCalls: 0,
+      criticalCalls: 0,
+      machinesAtRisk: 0,
+    });
+    assert.equal(healthy.reliabilityScore, 100);
+    assert.equal(healthy.riskLabel, "Healthy");
+    const stressed = computeCustomerReliabilityScore({
+      openCalls: 4,
+      criticalCalls: 2,
+      machinesAtRisk: 1,
+      repeatCallSites: 1,
+    });
+    assert.ok(stressed.reliabilityScore < healthy.reliabilityScore);
+    assert.ok(stressed.factors.length > 0);
+    assert.equal(stressed.riskLabel, "Critical");
+  });
+
+  it("aggregates parts consumption from CONSUME transactions", async () => {
+    const { getPartsConsumptionAnalytics } = await import("./parts-consumption");
+    const result = getPartsConsumptionAnalytics({ days: 365, limit: 5 });
+    assert.ok(typeof result.totalConsumed === "number");
+    assert.ok(Array.isArray(result.topParts));
+    assert.equal(result.href, "/inventory");
+  });
+
+  it("exposes report builder section registry", async () => {
+    const { defaultReportSections, ENTERPRISE_REPORT_SECTION_OPTIONS } =
+      await import("./report-sections");
+    const sections = defaultReportSections();
+    assert.ok(sections.includes("partsConsumption"));
+    assert.ok(sections.includes("organizationHealth"));
+    assert.ok(ENTERPRISE_REPORT_SECTION_OPTIONS.length >= 8);
+  });
+
+  it("feature flag defaults to enabled", async () => {
+    const { isEnterpriseIntelligence51c1Enabled } = await import(
+      "./feature-flag"
+    );
+    assert.equal(isEnterpriseIntelligence51c1Enabled(), true);
   });
 });

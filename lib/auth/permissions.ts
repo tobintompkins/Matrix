@@ -705,6 +705,12 @@ const ROLE_PERMISSIONS: Record<MatrixRole, MatrixPermission[]> = {
     "VIEW_SYSTEM_LOGS",
     "VIEW_SECURITY_LOGS",
     "EXPORT_SYSTEM_LOGS",
+    // Patch 51C.3 — executive view of ECC / Copilot (no alert/schedule manage)
+    "VIEW_EXECUTIVE_COMMAND_CENTER",
+    "VIEW_EXECUTIVE_ANALYTICS",
+    "VIEW_EXECUTIVE_REPORTS",
+    "EXPORT_EXECUTIVE_REPORTS",
+    "USE_EXECUTIVE_AI_INSIGHTS",
   ],
   FIELD_TECHNICIAN: [
     "VIEW_DASHBOARD",

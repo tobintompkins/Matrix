@@ -1,0 +1,3 @@
+{
+  "/api/pm/history/[historyId]/route": "app/api/pm/history/[historyId]/route.js"
+}

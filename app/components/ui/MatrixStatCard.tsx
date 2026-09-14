@@ -27,7 +27,7 @@ const statusDot: Record<
 export default function MatrixStatCard({
   label,
   value,
-  accent = "text-white",
+  accent = "text-[color:var(--foreground)]",
   icon,
   trend,
   href,
@@ -42,10 +42,10 @@ export default function MatrixStatCard({
             className={cn("mt-0.5 h-1.5 w-1.5 rounded-full", statusDot[status])}
             aria-hidden
           />
-          <p className="text-sm text-slate-400">{label}</p>
+          <p className="matrix-muted text-sm">{label}</p>
         </div>
         {icon && (
-          <div className="text-slate-500" aria-hidden>
+          <div className="text-[color:var(--matrix-muted)]" aria-hidden>
             {icon}
           </div>
         )}
@@ -53,24 +53,33 @@ export default function MatrixStatCard({
       <p className={cn("mt-3 text-3xl font-semibold tracking-tight", accent)}>
         {value}
       </p>
-      {trend && <p className="mt-2 text-xs text-slate-500">{trend}</p>}
+      {trend && <p className="matrix-muted mt-2 text-xs">{trend}</p>}
     </>
   );
 
   const shell = cn(
-    "rounded-xl border border-slate-800/90 bg-slate-900/80 p-5 shadow-sm shadow-black/10 transition",
+    "rounded-[var(--matrix-card-radius)] border p-4 shadow-[var(--matrix-shadow)] transition sm:p-5 md:p-6",
     href &&
-      "hover:border-slate-700 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400",
+      "hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400",
     className,
   );
 
+  const style = {
+    borderColor: "var(--matrix-border-subtle)",
+    background: "var(--matrix-card-bg)",
+  } as const;
+
   if (href) {
     return (
-      <Link href={href} className={cn(shell, "block")}>
+      <Link href={href} className={cn(shell, "block")} style={style}>
         {body}
       </Link>
     );
   }
 
-  return <div className={shell}>{body}</div>;
+  return (
+    <div className={shell} style={style}>
+      {body}
+    </div>
+  );
 }

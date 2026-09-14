@@ -18,7 +18,11 @@ export type TechnicianMetricRow = {
   status: string;
   openCalls: number;
   criticalCalls: number;
+  closedInRange: number;
+  completionRate: number | null;
   workloadHours: number;
+  capacityHours: number;
+  workloadVsCapacityPct: number | null;
   territory: string;
   href: string;
 };
@@ -29,6 +33,7 @@ export type CustomerHealthRow = {
   openCalls: number;
   criticalCalls: number;
   machinesAtRisk: number;
+  reliabilityScore: number;
   riskLabel: "Healthy" | "Watch" | "At Risk" | "Critical";
   href: string;
 };
@@ -39,6 +44,13 @@ export type PredictiveAnalytics = {
   criticalRisk: number;
   openAlerts: number;
   dueSoon14d: number;
+  /** Patch 51C.1 — risk-level counts over recent snapshots for trend bars. */
+  trendSeries: Array<{
+    date: string;
+    highRisk: number;
+    criticalRisk: number;
+    evaluated: number;
+  }>;
   topRiskMachines: Array<{
     machineId: string;
     riskLevel: string;
@@ -46,6 +58,22 @@ export type PredictiveAnalytics = {
     reason: string | null;
     href: string;
   }>;
+};
+
+export type PartsConsumptionSummary = {
+  totalConsumed: number;
+  distinctParts: number;
+  issueEvents: number;
+  empty: boolean;
+  emptyMessage: string | null;
+  topParts: Array<{
+    partNumber: string;
+    description: string;
+    quantityConsumed: number;
+    issueEvents: number;
+    href: string;
+  }>;
+  href: string;
 };
 
 export type AiInsightSummary = {
@@ -93,6 +121,7 @@ export type ExecutiveAnalyticsPayload = {
       activeTechnicians: number;
       fleetHealthScore: number | null;
       openDecisions: number;
+      organizationHealthScore: number | null;
     };
     series: TrendPoint[];
     seriesEmpty: boolean;
@@ -100,6 +129,7 @@ export type ExecutiveAnalyticsPayload = {
   technicians: TechnicianMetricRow[];
   customers: CustomerHealthRow[];
   predictive: PredictiveAnalytics;
+  partsConsumption: PartsConsumptionSummary;
   aiInsights: AiInsightSummary;
   reports: ExecutiveReportSection[];
   drilldowns: Array<{ key: string; label: string; href: string; count: number }>;

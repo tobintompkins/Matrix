@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admin/layout,_N_T_/admin/system-logs/layout,_N_T_/admin/system-logs/retention/layout,_N_T_/admin/system-logs/retention/page,_N_T_/admin/system-logs/retention"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admin/system-logs/retention/__PAGE__",
+    "/admin/system-logs/retention",
+    "/admin/system-logs",
+    "/admin",
+    "/_index",
+    "/_head"
+  ]
+}

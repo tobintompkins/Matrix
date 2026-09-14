@@ -1,0 +1,3 @@
+{
+  "/api/ai-operations/predictive-maintenance/machines/[machineId]/route": "app/api/ai-operations/predictive-maintenance/machines/[machineId]/route.js"
+}

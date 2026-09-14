@@ -4,9 +4,15 @@ import { useMemo, useState } from "react";
 import MatrixShell from "../../components/MatrixShell";
 import MatrixAuthGuard from "../../components/MatrixAuthGuard";
 import {
+  EnterpriseTableToolbar,
   MatrixButton,
   MatrixCard,
+  MatrixEmptyState,
   MatrixPageHeader,
+  MatrixTable,
+  exportRowsAsCsv,
+  useColumnVisibility,
+  type MatrixTableColumn,
 } from "../../components/ui";
 import MaintenanceSubnav from "../components/MaintenanceSubnav";
 import PMStatusBadge from "../components/PMStatusBadge";
@@ -21,7 +27,31 @@ import {
   startPmCompletion,
   updatePmCompletionSession,
   finalizePmCompletion,
+  type PmScheduleRow,
 } from "@/lib/pm-intelligence";
+
+type ScheduleTableRow = {
+  id: string;
+  scheduledDate: string;
+  customerName: string;
+  machineName: string;
+  assignedTechnician: string;
+  partsAvailability: string;
+  estimatedLaborHours: string;
+  status: string;
+  printerModel: string;
+  priority: string;
+};
+
+const COLUMN_OPTIONS = [
+  { key: "scheduledDate", label: "Date", locked: true },
+  { key: "customerName", label: "Customer" },
+  { key: "machineName", label: "Machine", locked: true },
+  { key: "assignedTechnician", label: "Technician" },
+  { key: "partsAvailability", label: "Parts" },
+  { key: "estimatedLaborHours", label: "Labor" },
+  { key: "status", label: "Status", locked: true },
+];
 
 export default function PmSchedulePage() {
   const profiles = useMemo(() => listProfiles(), []);
@@ -34,6 +64,13 @@ export default function PmSchedulePage() {
   const [site, setSite] = useState(profiles[0]?.siteName ?? "");
   const [wizardId, setWizardId] = useState<string | null>(null);
 
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [techFilter, setTechFilter] = useState("");
+  const [modelFilter, setModelFilter] = useState("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
+  const columnsVisibility = useColumnVisibility("pm-schedule", COLUMN_OPTIONS);
+
   const sites = [...new Set(profiles.map((p) => p.siteName))];
   const plan = useMemo(() => listSiteVisitPlan(site), [site]);
   const kitId = listIntervalRules().find(
@@ -42,6 +79,89 @@ export default function PmSchedulePage() {
       profiles.find((p) => p.printerId === printerId)?.printerModel,
   )?.requiredPartsKitId;
   const kit = kitId ? getPmPartsKit(kitId) : null;
+
+  const tableRows: ScheduleTableRow[] = useMemo(
+    () =>
+      rows.map((r: PmScheduleRow) => ({
+        id: r.id,
+        scheduledDate: r.scheduledDate,
+        customerName: r.customerName,
+        machineName: r.machineName,
+        assignedTechnician: r.assignedTechnician ?? "—",
+        partsAvailability: r.partsAvailability,
+        estimatedLaborHours: `${r.estimatedLaborHours}h`,
+        status: r.status,
+        printerModel: r.printerModel,
+        priority: r.priority,
+      })),
+    [rows],
+  );
+
+  const statuses = useMemo(
+    () => Array.from(new Set(tableRows.map((r) => r.status))).sort(),
+    [tableRows],
+  );
+  const technicians = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          tableRows
+            .map((r) => r.assignedTechnician)
+            .filter((t) => t && t !== "—"),
+        ),
+      ).sort(),
+    [tableRows],
+  );
+  const models = useMemo(
+    () => Array.from(new Set(tableRows.map((r) => r.printerModel))).sort(),
+    [tableRows],
+  );
+
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return tableRows.filter((row) => {
+      if (statusFilter && row.status !== statusFilter) return false;
+      if (techFilter && row.assignedTechnician !== techFilter) return false;
+      if (modelFilter && row.printerModel !== modelFilter) return false;
+      if (
+        overdueOnly &&
+        !String(row.status).toLowerCase().includes("overdue")
+      ) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        row.customerName.toLowerCase().includes(q) ||
+        row.machineName.toLowerCase().includes(q) ||
+        row.assignedTechnician.toLowerCase().includes(q) ||
+        row.status.toLowerCase().includes(q) ||
+        row.printerModel.toLowerCase().includes(q)
+      );
+    });
+  }, [tableRows, search, statusFilter, techFilter, modelFilter, overdueOnly]);
+
+  const activeFilterLabels = [
+    search.trim() ? `Search: ${search.trim()}` : null,
+    statusFilter ? `Status: ${statusFilter}` : null,
+    techFilter ? `Tech: ${techFilter}` : null,
+    modelFilter ? `Model: ${modelFilter}` : null,
+    overdueOnly ? "Overdue only" : null,
+  ].filter(Boolean) as string[];
+
+  const columns: MatrixTableColumn<ScheduleTableRow>[] = [
+    { key: "scheduledDate", header: "Date", sortable: true },
+    { key: "customerName", header: "Customer", sortable: true },
+    { key: "machineName", header: "Machine", sortable: true },
+    { key: "assignedTechnician", header: "Technician", sortable: true },
+    { key: "partsAvailability", header: "Parts", sortable: true },
+    { key: "estimatedLaborHours", header: "Labor", sortable: true },
+    {
+      key: "status",
+      header: "Status",
+      sortable: true,
+      render: (row) => <PMStatusBadge status={row.status as never} />,
+    },
+  ];
 
   function refresh() {
     setRows(listPmScheduleRows());
@@ -116,7 +236,10 @@ export default function PmSchedulePage() {
         <MaintenanceSubnav />
 
         {error ? (
-          <p className="mb-4 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-300" role="alert">
+          <p
+            className="mb-4 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-300"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}
@@ -166,7 +289,9 @@ export default function PmSchedulePage() {
               </MatrixButton>
             </div>
           </MatrixCard>
-          {kit ? <PMPartsKitCard kit={kit} availability="Warehouse check" /> : null}
+          {kit ? (
+            <PMPartsKitCard kit={kit} availability="Warehouse check" />
+          ) : null}
         </div>
 
         <MatrixCard className="mb-8">
@@ -186,8 +311,8 @@ export default function PmSchedulePage() {
             </select>
           </label>
           <p className="text-sm text-slate-400">
-            {plan.dueMachines.length} due/soon · {plan.cleaningsDue.length} cleanings ·{" "}
-            {plan.allMachines.length} machines at site
+            {plan.dueMachines.length} due/soon · {plan.cleaningsDue.length}{" "}
+            cleanings · {plan.allMachines.length} machines at site
           </p>
           <ul className="mt-3 space-y-2 text-sm">
             {plan.dueMachines.map((m) => (
@@ -216,40 +341,138 @@ export default function PmSchedulePage() {
           ) : null}
         </MatrixCard>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-800">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-900/80 text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-3 py-2">Date</th>
-                <th className="px-3 py-2">Customer</th>
-                <th className="px-3 py-2">Machine</th>
-                <th className="px-3 py-2">Technician</th>
-                <th className="px-3 py-2">Parts</th>
-                <th className="px-3 py-2">Labor</th>
-                <th className="px-3 py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-3 py-2 text-slate-300">{r.scheduledDate}</td>
-                  <td className="px-3 py-2 text-slate-400">{r.customerName}</td>
-                  <td className="px-3 py-2 text-slate-100">{r.machineName}</td>
-                  <td className="px-3 py-2 text-slate-400">
-                    {r.assignedTechnician ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 text-slate-400">{r.partsAvailability}</td>
-                  <td className="px-3 py-2 text-slate-400">
-                    {r.estimatedLaborHours}h
-                  </td>
-                  <td className="px-3 py-2">
-                    <PMStatusBadge status={r.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <MatrixCard title="Scheduled PM work">
+          <EnterpriseTableToolbar
+            searchPlaceholder="Search PM records"
+            searchValue={search}
+            onSearchChange={setSearch}
+            resultCount={filteredRows.length}
+            resultLabel="PM records"
+            activeFilterLabels={activeFilterLabels}
+            onClearFilters={() => {
+              setSearch("");
+              setStatusFilter("");
+              setTechFilter("");
+              setModelFilter("");
+              setOverdueOnly(false);
+            }}
+            onExport={() =>
+              exportRowsAsCsv("pm-schedule-filtered", filteredRows, [
+                {
+                  key: "scheduledDate",
+                  header: "Date",
+                  value: (r) => r.scheduledDate,
+                },
+                {
+                  key: "customerName",
+                  header: "Customer",
+                  value: (r) => r.customerName,
+                },
+                {
+                  key: "machineName",
+                  header: "Machine",
+                  value: (r) => r.machineName,
+                },
+                {
+                  key: "assignedTechnician",
+                  header: "Technician",
+                  value: (r) => r.assignedTechnician,
+                },
+                {
+                  key: "partsAvailability",
+                  header: "Parts",
+                  value: (r) => r.partsAvailability,
+                },
+                {
+                  key: "estimatedLaborHours",
+                  header: "Labor",
+                  value: (r) => r.estimatedLaborHours,
+                },
+                { key: "status", header: "Status", value: (r) => r.status },
+                {
+                  key: "printerModel",
+                  header: "Model",
+                  value: (r) => r.printerModel,
+                },
+                {
+                  key: "priority",
+                  header: "Priority",
+                  value: (r) => r.priority,
+                },
+              ])
+            }
+            exportLabel="Export CSV (filtered results)"
+            columnOptions={COLUMN_OPTIONS}
+            visibleColumnKeys={columnsVisibility.visibleKeys}
+            onToggleColumn={columnsVisibility.toggle}
+            selectFilters={[
+              {
+                id: "status",
+                label: "PM status",
+                value: statusFilter,
+                allLabel: "All statuses",
+                onChange: setStatusFilter,
+                options: statuses.map((s) => ({ value: s, label: s })),
+              },
+              {
+                id: "technician",
+                label: "Technician",
+                value: techFilter,
+                allLabel: "All technicians",
+                onChange: setTechFilter,
+                options: technicians.map((t) => ({ value: t, label: t })),
+              },
+              {
+                id: "model",
+                label: "Model",
+                value: modelFilter,
+                allLabel: "All models",
+                onChange: setModelFilter,
+                options: models.map((m) => ({ value: m, label: m })),
+              },
+            ]}
+            secondaryFilters={
+              <label className="inline-flex items-center gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-600"
+                  checked={overdueOnly}
+                  onChange={(e) => setOverdueOnly(e.target.checked)}
+                />
+                Overdue only
+              </label>
+            }
+          />
+
+          {filteredRows.length === 0 ? (
+            <MatrixEmptyState
+              title={
+                activeFilterLabels.length > 0
+                  ? "No PM work matches these filters"
+                  : "No PM records found"
+              }
+              description={
+                activeFilterLabels.length > 0
+                  ? "Clear filters to view more results."
+                  : "Schedule a PM visit to populate this table."
+              }
+              className="py-10"
+            />
+          ) : (
+            <MatrixTable
+              columns={columns}
+              data={filteredRows}
+              rowKey={(row) => row.id}
+              searchable={false}
+              paginated
+              pageSize={25}
+              pageSizeOptions={[10, 25, 50, 100]}
+              visibleColumnKeys={columnsVisibility.visibleKeys}
+              stickyHeader
+              compact
+            />
+          )}
+        </MatrixCard>
       </MatrixAuthGuard>
     </MatrixShell>
   );

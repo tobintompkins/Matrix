@@ -1,4 +1,5 @@
 "use client";
+import { useFieldIdentity } from "@/app/field/FieldIdentityProvider";
 
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -7,10 +8,9 @@ import { enqueueOperation } from "@/lib/field";
 import { getMaintenanceProfile } from "@/lib/maintenance";
 import type { MaintenanceKind } from "@/lib/maintenance";
 
-const TECH = "Toby Tompkins";
-const TECH_ID = "tech-toby";
 
 function MaintenanceForm() {
+  const { technicianName: TECH, userId: TECH_ID } = useFieldIdentity();
   const params = useSearchParams();
   const printerId = params.get("printerId") ?? "";
   const workOrderId = params.get("workOrderId") ?? "";

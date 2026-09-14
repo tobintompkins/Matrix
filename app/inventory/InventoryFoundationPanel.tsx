@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import {
+  EnterpriseTableToolbar,
   MatrixButton,
   MatrixCard,
   MatrixEmptyState,
-  MatrixSearchBar,
   MatrixStatCard,
   MatrixStatusBadge,
+  exportRowsAsCsv,
   type MatrixStatusVariant,
 } from "@/app/components/ui";
 import {
@@ -273,57 +274,103 @@ export default function InventoryFoundationPanel() {
         title={view === "warehouse" ? "Warehouse Stock" : "Truck Stock"}
         subtitle="Search by part number or description. Filter by model and stock status."
       >
-        <div className="mb-6 grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-1">
-            <MatrixSearchBar
-              id="inventory-search"
-              placeholder="Search part # or description…"
-              value={search}
-              onValueChange={setSearch}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm text-slate-400">
-              Filter by model
-            </label>
-            <select
-              value={modelFilter}
-              onChange={(e) =>
-                setModelFilter(e.target.value as CompatibleModel | "All")
-              }
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-            >
-              <option value="All">All models</option>
-              {compatibleModels.map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm text-slate-400">
-              Filter by stock status
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as StockStatus | "All")
-              }
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-            >
-              <option value="All">All statuses</option>
-              <option value="In Stock">In Stock</option>
-              <option value="Low Stock">Low Stock</option>
-              <option value="Out of Stock">Out of Stock</option>
-            </select>
-          </div>
-        </div>
+        <EnterpriseTableToolbar
+          searchPlaceholder="Search parts"
+          searchValue={search}
+          onSearchChange={setSearch}
+          resultCount={filteredItems.length}
+          resultLabel="parts"
+          activeFilterLabels={[
+            search.trim() ? `Search: ${search.trim()}` : null,
+            modelFilter !== "All" ? `Model: ${modelFilter}` : null,
+            statusFilter !== "All" ? `Stock: ${statusFilter}` : null,
+          ].filter(Boolean) as string[]}
+          onClearFilters={() => {
+            setSearch("");
+            setModelFilter("All");
+            setStatusFilter("All");
+          }}
+          onExport={() =>
+            exportRowsAsCsv("parts-inventory-filtered", filteredItems, [
+              {
+                key: "partNumber",
+                header: "Part Number",
+                value: (r) => r.partNumber,
+              },
+              {
+                key: "description",
+                header: "Description",
+                value: (r) => r.description,
+              },
+              {
+                key: "quantityOnHand",
+                header: "Qty",
+                value: (r) => r.quantityOnHand,
+              },
+              {
+                key: "minimumQuantity",
+                header: "Min Qty",
+                value: (r) => r.minimumQuantity,
+              },
+              {
+                key: "stockStatus",
+                header: "Status",
+                value: (r) => r.stockStatus,
+              },
+              {
+                key: "locationId",
+                header: "Location",
+                value: (r) => r.locationId,
+              },
+              {
+                key: "compatibleModels",
+                header: "Models",
+                value: (r) => r.compatibleModels.join("; "),
+              },
+            ])
+          }
+          exportLabel="Export CSV (filtered results)"
+          selectFilters={[
+            {
+              id: "model",
+              label: "Model compatibility",
+              value: modelFilter === "All" ? "" : modelFilter,
+              allLabel: "All models",
+              onChange: (value) =>
+                setModelFilter((value || "All") as CompatibleModel | "All"),
+              options: compatibleModels.map((model) => ({
+                value: model,
+                label: model,
+              })),
+            },
+            {
+              id: "stock",
+              label: "Stock state",
+              value: statusFilter === "All" ? "" : statusFilter,
+              allLabel: "All stock states",
+              onChange: (value) =>
+                setStatusFilter((value || "All") as StockStatus | "All"),
+              options: [
+                { value: "In Stock", label: "In Stock" },
+                { value: "Low Stock", label: "Low Stock" },
+                { value: "Out of Stock", label: "Out of Stock" },
+              ],
+            },
+          ]}
+        />
 
         {filteredItems.length === 0 ? (
           <MatrixEmptyState
-            title="No inventory items found"
-            description="Try a different search, model, or stock status filter."
+            title={
+              search || modelFilter !== "All" || statusFilter !== "All"
+                ? "No parts match these filters"
+                : "No inventory items found"
+            }
+            description={
+              search || modelFilter !== "All" || statusFilter !== "All"
+                ? "Clear filters to view more results."
+                : "Try a different search, model, or stock status filter."
+            }
           />
         ) : (
           <div className="space-y-4">

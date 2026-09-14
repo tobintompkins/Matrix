@@ -1,0 +1,3 @@
+{
+  "/api/data-quality/issues/[id]/dismiss/route": "app/api/data-quality/issues/[id]/dismiss/route.js"
+}

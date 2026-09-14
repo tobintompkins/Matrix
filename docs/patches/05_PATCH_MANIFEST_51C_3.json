@@ -1,0 +1,30 @@
+{
+  "patch": "51C.3",
+  "title": "Executive AI Copilot",
+  "type": "aggregation-decision-support",
+  "branch": "patch/51c-2-predictive-business-analytics",
+  "principle": "Extend ECC AI Ask + Matrix Assist packaging; Matrix-data answers only; recommend never execute; no second assistant.",
+  "surface": {
+    "route": "/executive-command-center/ai-insights",
+    "apis": [
+      "/api/executive-command-center/insights/ask",
+      "/api/executive-command-center/copilot"
+    ],
+    "featureFlag": "EXECUTIVE_AI_COPILOT_51C3"
+  },
+  "schema": "none",
+  "dependsOn": [
+    "51C.1",
+    "51C.2",
+    "51A.5",
+    "matrix-assist",
+    "executive-reporting",
+    "inventory",
+    "pm",
+    "service-calls"
+  ],
+  "docs": [
+    "docs/EXECUTIVE_AI_COPILOT.md",
+    "docs/PATCH_51C3_SAFETY.md"
+  ]
+}

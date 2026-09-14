@@ -1,6 +1,7 @@
 "use client";
+import { useFieldIdentity } from "@/app/field/FieldIdentityProvider";
 
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import FieldShell from "../FieldShell";
 import {
   clearOfflineDataSafely,
@@ -14,20 +15,20 @@ import {
   type FieldStorageStats,
 } from "@/lib/field";
 
-const TECH_ID = "tech-toby";
 
 export default function FieldSettingsPage() {
+  const { userId: TECH_ID } = useFieldIdentity();
   const [stats, setStats] = useState<FieldStorageStats | null>(null);
   const [notice, setNotice] = useState("");
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const next = await loadFieldStorageStats(TECH_ID);
     startTransition(() => setStats(next));
-  }
+  }, [TECH_ID]);
 
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [refresh]);
 
   return (
     <FieldShell title="Field Data">
@@ -110,6 +111,8 @@ export default function FieldSettingsPage() {
               await refresh();
             })
           }
+          disabled
+          title="Shared-device cleanup is paused until per-user storage isolation is implemented."
         >
           Clear Successfully Synchronized Attachments
         </button>
@@ -133,14 +136,15 @@ export default function FieldSettingsPage() {
               await refresh();
             })();
           }}
+          disabled
+          title="Shared-device cleanup is paused until per-user storage isolation is implemented."
         >
           Clear All Offline Data
         </button>
       </div>
 
       <p className="mt-6 text-xs text-slate-500">
-        Automatic cleanup never removes unsynchronized data. Completed and
-        synchronized packages / uploaded temps can be pruned manually above.
+        Device-wide cleanup is paused while per-user storage isolation is being completed. Existing offline data has not been deleted or reassigned.
       </p>
     </FieldShell>
   );

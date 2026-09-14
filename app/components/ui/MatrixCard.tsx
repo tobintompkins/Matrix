@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import AppCard from "./AppCard";
 import { cn } from "./utils";
 
 export type MatrixCardProps = {
@@ -10,8 +11,12 @@ export type MatrixCardProps = {
   className?: string;
   bodyClassName?: string;
   padding?: boolean;
+  footer?: ReactNode;
 };
 
+/**
+ * Matrix card — now built on AppCard (Patch 52A.3) for shared theme tokens.
+ */
 export default function MatrixCard({
   title,
   subtitle,
@@ -21,39 +26,44 @@ export default function MatrixCard({
   className,
   bodyClassName,
   padding = true,
+  footer,
 }: MatrixCardProps) {
-  const hasHeader = title || subtitle || icon || actions;
+  return (
+    <AppCard
+      title={title}
+      description={subtitle}
+      icon={icon}
+      actions={actions}
+      footer={footer}
+      className={className}
+      bodyClassName={bodyClassName}
+      padding={padding}
+    >
+      {children}
+    </AppCard>
+  );
+}
 
+/** Compact inline helper for card title rows without a full AppCard. */
+export function MatrixCardChrome({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-slate-800/90 bg-slate-900/80 shadow-sm shadow-black/10",
+        "rounded-[var(--matrix-card-radius)] border shadow-[var(--matrix-shadow)]",
         className,
       )}
+      style={{
+        borderColor: "var(--matrix-border-subtle)",
+        background: "var(--matrix-card-bg)",
+      }}
     >
-      {hasHeader && (
-        <div className="flex items-start justify-between gap-4 border-b border-slate-800/80 px-5 py-3.5 md:px-6">
-          <div className="flex items-start gap-3">
-            {icon && (
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-700/80 bg-slate-950/50 text-cyan-400">
-                {icon}
-              </div>
-            )}
-            <div>
-              {title && (
-                <h3 className="text-base font-semibold text-white md:text-lg">
-                  {title}
-                </h3>
-              )}
-              {subtitle && (
-                <p className="mt-1 text-sm text-slate-400">{subtitle}</p>
-              )}
-            </div>
-          </div>
-          {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
-        </div>
-      )}
-      <div className={cn(padding && "p-5 md:p-6", bodyClassName)}>{children}</div>
+      {children}
     </div>
   );
 }

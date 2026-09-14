@@ -1,0 +1,3 @@
+{
+  "/api/portal/users/[id]/suspend/route": "app/api/portal/users/[id]/suspend/route.js"
+}

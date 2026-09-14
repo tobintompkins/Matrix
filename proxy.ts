@@ -1,4 +1,6 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { evaluateFieldAccess, isFieldPage } from "./lib/field/access";
+import { clerkMiddleware, createRouteMatcher, currentUser } from "@clerk/nextjs/server";
 
 /**
  * Next.js 16+ uses proxy.ts (replaces middleware.ts).
@@ -65,6 +67,30 @@ export default clerkMiddleware(async (auth, request) => {
 
   if (isProtectedRoute(request)) {
     await auth.protect();
+
+    // Check every Field request, including direct nested URLs and client navigation.
+    // This is an entry gate only; data handlers still require record-level checks.
+    if (isFieldPage(request.nextUrl.pathname)) {
+      try {
+        const user = await currentUser();
+        const access = evaluateFieldAccess(
+          user?.id,
+          user?.publicMetadata as Record<string, unknown> | undefined,
+        );
+        if (!access.allowed) {
+          return new NextResponse(
+            '<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Matrix Field access</title></head><body><main style="max-width:40rem;margin:4rem auto;padding:1.5rem;font:1rem/1.6 system-ui"><h1>Field access is not available</h1><p>Ask your Matrix administrator to check your assigned role and Field access. No Field work has been opened.</p><a href="/dashboard">Return to Service Hub</a></main></body></html>',
+            { status: 403, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store" } },
+          );
+        }
+      } catch {
+        // Identity lookup failure must never allow entry using a fallback role.
+        return new NextResponse(
+          "Matrix could not verify Field access. Please try again when your connection is available.",
+          { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "private, no-store" } },
+        );
+      }
+    }
   }
 });
 

@@ -2,6 +2,8 @@
 
 Parts 1–3 operate as **one** Executive Command Center under `/executive-command-center`.
 
+**Patch 51C.1** brands this surface as **Enterprise Intelligence** (same routes and permissions). See [ENTERPRISE_INTELLIGENCE.md](./ENTERPRISE_INTELLIGENCE.md) and [PATCH_51C1_SAFETY.md](./PATCH_51C1_SAFETY.md). Soft-disable: `ENTERPRISE_INTELLIGENCE_51C1=false`.
+
 ## Part 1 — Foundation
 - Route: `/executive-command-center`
 - Permission: `VIEW_EXECUTIVE_COMMAND_CENTER`
@@ -9,11 +11,11 @@ Parts 1–3 operate as **one** Executive Command Center under `/executive-comman
 
 ## Part 2 — Intelligence & Analytics
 ### Pages
-- `/executive-command-center/analytics`
+- `/executive-command-center/analytics` — Executive KPI dashboard (+ parts consumption)
 - `/executive-command-center/trends`
-- `/executive-command-center/technicians`
-- `/executive-command-center/customers`
-- `/executive-command-center/predictive`
+- `/executive-command-center/technicians` — Technician productivity
+- `/executive-command-center/customers` — Customer reliability
+- `/executive-command-center/predictive` — Predictive maintenance trends
 - `/executive-command-center/insights`
 - `/executive-command-center/reports`
 
@@ -37,9 +39,9 @@ Parts 1–3 operate as **one** Executive Command Center under `/executive-comman
 
 ### Pages
 - `/executive-command-center/briefings` — Daily/Weekly/Monthly + URL filters
-- `/executive-command-center/report-center` — period reports, exports, saved configs, history
-- `/executive-command-center/alerts` — Action Center (ack/resolve/dismiss)
-- `/executive-command-center/ai-insights` — Q&A with observed vs interpretation
+- `/executive-command-center/report-center` — Report builder, exports, saved configs, history
+- `/executive-command-center/alerts` — Action Center (ack/resolve/dismiss; org-health merge when 51C.1 enabled)
+- `/executive-command-center/ai-insights` — Q&A with observed vs interpretation (Matrix Assist packaging)
 - `/executive-command-center/scorecards` — KPI deltas + drill-downs
 - `/executive-command-center/comparisons` · `/widgets` · `/schedules`
 

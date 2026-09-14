@@ -1,0 +1,3 @@
+{
+  "/api/internal/automations/run-scheduled/route": "app/api/internal/automations/run-scheduled/route.js"
+}

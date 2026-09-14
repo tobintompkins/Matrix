@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/field/layout,_N_T_/field/profile/layout,_N_T_/field/profile/page,_N_T_/field/profile"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/field/profile/__PAGE__",
+    "/field/profile",
+    "/field",
+    "/_index",
+    "/_head"
+  ]
+}

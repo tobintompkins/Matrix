@@ -1,0 +1,3 @@
+{
+  "/api/organization-health/alerts/[id]/acknowledge/route": "app/api/organization-health/alerts/[id]/acknowledge/route.js"
+}

@@ -1,11 +1,96 @@
 @import "tailwindcss";
 
 :root {
-  --background: #020617;
-  --foreground: #e2e8f0;
-  --matrix-surface: #0f172a;
-  --matrix-border: #1e293b;
+  color-scheme: dark;
+  --background: #101722;
+  --foreground: #edf2f7;
+  --matrix-surface: #17212e;
+  --matrix-surface-elevated: #1c2837;
+  --matrix-border: #334155;
+  --matrix-border-subtle: #2a3748;
   --matrix-accent: #22d3ee;
+  --matrix-muted: #a6b5c7;
+  --matrix-card-bg: #17212e;
+  --matrix-card-radius: 0.85rem;
+  --matrix-content-pad: 1.5rem;
+  --matrix-content-pad-mobile: 1rem;
+  --matrix-section-gap: 1.75rem;
+  --matrix-shadow: none;
+  --matrix-sidebar: #111b28;
+  --matrix-topbar: #111b28;
+  --matrix-task-bg: #1b2939;
+  --matrix-task-bg-hover: #23374a;
+  --matrix-task-border: #34485c;
+
+  --status-open: #60a5fa;
+  --status-progress: #22d3ee;
+  --status-waiting: #fbbf24;
+  --status-completed: #34d399;
+  --status-healthy: #34d399;
+  --status-warning: #fbbf24;
+  --status-critical: #fb7185;
+  --status-overdue: #fb7185;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --background: #f1f5f9;
+    --foreground: #0f172a;
+    --matrix-surface: #ffffff;
+    --matrix-surface-elevated: #f8fafc;
+    --matrix-border: #e2e8f0;
+    --matrix-border-subtle: color-mix(in srgb, var(--matrix-border) 90%, transparent);
+    --matrix-accent: #0891b2;
+    --matrix-muted: #64748b;
+    --matrix-card-bg: #ffffff;
+    --matrix-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+    --matrix-sidebar: #ffffff;
+    --matrix-topbar: #ffffff;
+    --matrix-task-bg: #f8fafc;
+    --matrix-task-bg-hover: #e8f4f8;
+    --matrix-task-border: #cbd5e1;
+  }
+}
+
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #101722;
+  --foreground: #edf2f7;
+  --matrix-surface: #17212e;
+  --matrix-surface-elevated: #1c2837;
+  --matrix-border: #334155;
+  --matrix-border-subtle: #2a3748;
+  --matrix-accent: #22d3ee;
+  --matrix-muted: #a6b5c7;
+  --matrix-card-bg: #17212e;
+  --matrix-shadow: none;
+  --matrix-sidebar: #111b28;
+  --matrix-topbar: #111b28;
+  --matrix-task-bg: #1b2939;
+  --matrix-task-bg-hover: #23374a;
+  --matrix-task-border: #34485c;
+}
+
+.light,
+[data-theme="light"] {
+  color-scheme: light;
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --matrix-surface: #ffffff;
+  --matrix-surface-elevated: #f8fafc;
+  --matrix-border: #e2e8f0;
+  --matrix-border-subtle: color-mix(in srgb, var(--matrix-border) 90%, transparent);
+  --matrix-accent: #0891b2;
+  --matrix-muted: #64748b;
+  --matrix-card-bg: #ffffff;
+  --matrix-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+  --matrix-sidebar: #ffffff;
+  --matrix-topbar: #ffffff;
+  --matrix-task-bg: #f8fafc;
+  --matrix-task-bg-hover: #e8f4f8;
+  --matrix-task-border: #cbd5e1;
 }
 
 @theme inline {
@@ -21,13 +106,38 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Consistent focus visibility for keyboard users */
+.matrix-page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--matrix-section-gap);
+}
+
+.matrix-page-title {
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  color: var(--foreground);
+}
+
+.matrix-section-title {
+  font-size: 1.05rem;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.matrix-muted {
+  color: var(--matrix-muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
 :focus-visible {
   outline: 2px solid color-mix(in srgb, var(--matrix-accent) 70%, white);
   outline-offset: 2px;
 }
 
-/* Prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -36,4 +146,72 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.matrix-workspace { line-height: 1.55; }
+.matrix-sidebar { background: var(--matrix-sidebar); }
+.matrix-sidebar nav > div { padding-bottom: 0.35rem; }
+.matrix-topbar { background: var(--matrix-topbar); }
+.matrix-content { padding-top: 2rem; padding-bottom: 3rem; }
+.matrix-page-heading {
+  padding: 0 0 1.5rem;
+  border-bottom: 1px solid var(--matrix-border-subtle);
+  margin-bottom: 1.5rem;
+}
+.matrix-page-stack > .matrix-page-heading { margin-bottom: 0; }
+.matrix-card { box-shadow: none; }
+.matrix-welcome { padding: 0 0 0.25rem; }
+.matrix-task-card {
+  border-color: var(--matrix-task-border);
+  background: var(--matrix-task-bg);
+  align-items: flex-start;
+  padding: 1.1rem;
+}
+.matrix-task-card:hover {
+  border-color: var(--matrix-accent);
+  background: var(--matrix-task-bg-hover);
+}
+.matrix-task-card.bg-cyan-500 {
+  background: #22d3ee;
+  color: #08202b;
+  border-color: #22d3ee;
+}
+.matrix-task-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: rgb(127 155 183 / 15%);
+}
+.matrix-task-icon svg { width: 1.15rem; height: 1.15rem; }
+.matrix-disclosure {
+  border: 1px solid var(--matrix-border-subtle);
+  border-radius: 0.75rem;
+}
+.matrix-disclosure summary {
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.matrix-workspace :where(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="color"]), select) {
+  min-height: 2.75rem;
+}
+.matrix-workspace :where(input, select, textarea) { scroll-margin-top: 6rem; }
+.matrix-workspace :where(textarea) { line-height: 1.6; }
+.matrix-workspace :where(table) { font-size: 0.875rem; line-height: 1.5; }
+.matrix-workspace :where(th) { text-align: left; white-space: nowrap; }
+.matrix-workspace :where(td, th) { padding-top: 0.85rem; padding-bottom: 0.85rem; }
+.matrix-workspace :where(tbody tr:hover) { background-color: rgb(148 163 184 / 6%); }
+.matrix-workspace :where(button, a, summary, input, select, textarea):focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 3px;
+}
+@media (max-width: 640px) {
+  .matrix-content { padding-top: 1.25rem; }
+  .matrix-page-heading { padding-bottom: 1rem; }
+  .matrix-task-card { min-height: 5rem; }
 }

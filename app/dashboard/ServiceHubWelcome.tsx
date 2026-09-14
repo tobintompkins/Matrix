@@ -3,7 +3,6 @@
 import { useUser } from "@clerk/nextjs";
 import { resolveMatrixRole } from "@/lib/auth/permissions";
 import {
-  SERVICE_HUB_SUBTITLE,
   serviceHubWelcomeMessage,
 } from "@/lib/service-hub/welcome";
 
@@ -14,7 +13,7 @@ function formatRoleLabel(role: string): string {
     .join(" ");
 }
 
-/** Patch 47 — single Service Hub identity: subtitle + role-aware welcome (no second H1). */
+/** Patch 47 / 52A.1 — Service Hub identity: role-aware welcome (page header owns title/subtitle). */
 export default function ServiceHubWelcome() {
   const { user } = useUser();
   const { role } = resolveMatrixRole(
@@ -33,10 +32,7 @@ export default function ServiceHubWelcome() {
   });
 
   return (
-    <div className="mb-6 space-y-3">
-      <p className="max-w-3xl text-sm leading-relaxed text-slate-400">
-        {SERVICE_HUB_SUBTITLE}
-      </p>
+    <div className="matrix-welcome space-y-2">
       <p className="max-w-3xl text-sm text-slate-200" role="status">
         {serviceHubWelcomeMessage(role)}
       </p>

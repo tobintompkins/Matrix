@@ -6,7 +6,7 @@
 import type { MatrixRole } from "@/lib/auth/types";
 
 export const SERVICE_HUB_SUBTITLE =
-  "Monitor service operations, preventive maintenance, customer equipment, parts, and technician activity from one workspace.";
+  "Start a task, check work that needs attention, or review recent updates.";
 
 export function serviceHubWelcomeMessage(
   role: MatrixRole | null | undefined,

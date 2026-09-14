@@ -1,0 +1,18 @@
+{
+  "status": 307,
+  "headers": {
+    "location": "/portal/maintenance",
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/portal/layout,_N_T_/portal/preventive-maintenance/layout,_N_T_/portal/preventive-maintenance/page,_N_T_/portal/preventive-maintenance"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/portal/preventive-maintenance/__PAGE__",
+    "/portal/preventive-maintenance",
+    "/portal",
+    "/_index",
+    "/_head"
+  ]
+}

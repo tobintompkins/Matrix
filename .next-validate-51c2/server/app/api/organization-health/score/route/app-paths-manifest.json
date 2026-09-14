@@ -1,0 +1,3 @@
+{
+  "/api/organization-health/score/route": "app/api/organization-health/score/route.js"
+}

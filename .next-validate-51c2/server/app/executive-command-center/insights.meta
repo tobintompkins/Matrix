@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/executive-command-center/layout,_N_T_/executive-command-center/insights/layout,_N_T_/executive-command-center/insights/page,_N_T_/executive-command-center/insights"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/executive-command-center/insights/__PAGE__",
+    "/executive-command-center/insights",
+    "/executive-command-center",
+    "/_index",
+    "/_head"
+  ]
+}

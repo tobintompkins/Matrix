@@ -96,6 +96,26 @@ export type ExecutiveCommandCenterSummary = {
     confidence: number;
     factors: FleetHealthFactor[];
   };
+  /** Patch 51C.1 — Organization Health rollup (separate from fleet score). */
+  organizationHealth: {
+    enabled: boolean;
+    overallScore: number | null;
+    classification: string;
+    availableCategories: number;
+    href: string;
+    message?: string;
+  } | null;
+  /** Patch 51C.1 — Decision + predictive recommendations inbox. */
+  recommendations: Array<{
+    id: string;
+    title: string;
+    reason: string;
+    href: string;
+    source: string;
+    severity: string;
+  }>;
+  /** Soft flag for 51C.1 UI extensions. */
+  enterpriseIntelligenceEnabled: boolean;
   kpis: ExecutiveKpis;
   priorities: ExecutivePriorityItem[];
   aiBriefing: ExecutiveBriefing | null;

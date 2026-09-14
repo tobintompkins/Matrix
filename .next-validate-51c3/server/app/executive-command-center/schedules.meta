@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/executive-command-center/layout,_N_T_/executive-command-center/schedules/layout,_N_T_/executive-command-center/schedules/page,_N_T_/executive-command-center/schedules"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/executive-command-center/schedules/__PAGE__",
+    "/executive-command-center/schedules",
+    "/executive-command-center",
+    "/_index",
+    "/_head"
+  ]
+}

@@ -1,0 +1,3 @@
+{
+  "/api/system-logs/security/[id]/dismiss/route": "app/api/system-logs/security/[id]/dismiss/route.js"
+}

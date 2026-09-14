@@ -1,0 +1,53 @@
+{
+  "node": {
+    "00be4e21a9a51d99bdd6a9a21e8b24ddbacb689454": {
+      "workers": {
+        "app/admin/users/page": {
+          "moduleId": 939641,
+          "async": false,
+          "exportedName": "invalidateCacheAction",
+          "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js"
+        }
+      },
+      "exportedName": "invalidateCacheAction",
+      "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js"
+    },
+    "00cee1708e3abdd4a20ed5bce0110fb3270217d19c": {
+      "workers": {
+        "app/admin/users/page": {
+          "moduleId": 939641,
+          "async": false,
+          "exportedName": "createOrReadKeylessAction",
+          "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+        }
+      },
+      "exportedName": "createOrReadKeylessAction",
+      "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+    },
+    "0003bf171bf477162b035a8a06d2f4b510573f7bbe": {
+      "workers": {
+        "app/admin/users/page": {
+          "moduleId": 939641,
+          "async": false,
+          "exportedName": "deleteKeylessAction",
+          "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+        }
+      },
+      "exportedName": "deleteKeylessAction",
+      "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+    },
+    "40e2978998000ddbc24f4de6f2df0bbd63d2e4e0a9": {
+      "workers": {
+        "app/admin/users/page": {
+          "moduleId": 939641,
+          "async": false,
+          "exportedName": "syncKeylessConfigAction",
+          "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+        }
+      },
+      "exportedName": "syncKeylessConfigAction",
+      "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+    }
+  },
+  "edge": {}
+}

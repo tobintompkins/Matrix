@@ -1,0 +1,3 @@
+module.exports=[91641,e=>{"use strict";e.i(51261);var t=e.i(480861),i=e.i(42503);e.s(["notifyDataQualityEvent",0,function(e){let r=e.userIds.filter(Boolean);r.length&&(0,i.pushNotification)((0,t.createEventNotification)({type:e.type,title:e.title,message:e.message,userIds:r,priority:e.priority??"NORMAL",relatedRecordType:"data_quality_issue",relatedRecordId:e.issueId??null,customerName:null,printerId:null,printerName:null}))}])}];
+
+//# sourceMappingURL=lib_data-quality_notifications_ts_0h3efei._.js.map

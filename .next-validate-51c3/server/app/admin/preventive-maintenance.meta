@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admin/layout,_N_T_/admin/preventive-maintenance/layout,_N_T_/admin/preventive-maintenance/page,_N_T_/admin/preventive-maintenance"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admin/preventive-maintenance/__PAGE__",
+    "/admin/preventive-maintenance",
+    "/admin",
+    "/_index",
+    "/_head"
+  ]
+}

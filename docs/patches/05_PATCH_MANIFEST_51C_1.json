@@ -1,0 +1,38 @@
+{
+  "patch": "51C.1",
+  "title": "Enterprise Intelligence Platform",
+  "type": "aggregation",
+  "branch": "patch/51c-1-enterprise-intelligence",
+  "principle": "Aggregate existing Matrix modules into ECC branded as Enterprise Intelligence; do not duplicate systems or databases.",
+  "surface": {
+    "route": "/executive-command-center",
+    "brand": "Enterprise Intelligence",
+    "permissions": [
+      "VIEW_EXECUTIVE_COMMAND_CENTER",
+      "VIEW_EXECUTIVE_ANALYTICS",
+      "VIEW_EXECUTIVE_REPORTS",
+      "EXPORT_EXECUTIVE_REPORTS",
+      "USE_EXECUTIVE_AI_INSIGHTS"
+    ],
+    "featureFlag": "ENTERPRISE_INTELLIGENCE_51C1"
+  },
+  "deliverables": [
+    "Fleet Health dashboard",
+    "Executive KPI dashboard",
+    "Predictive maintenance trends",
+    "Parts consumption analytics",
+    "Technician productivity analytics",
+    "Customer reliability scoring",
+    "Report builder",
+    "AI insight engine via Matrix Assist",
+    "Export framework CSV/Excel/PDF-text"
+  ],
+  "docs": [
+    "docs/ENTERPRISE_INTELLIGENCE.md",
+    "docs/PATCH_51C1_SAFETY.md",
+    "docs/executive-command-center.md"
+  ],
+  "schema": "none",
+  "dependsOn": ["51A.5", "50B", "51A.3", "51A.4", "inventory", "matrix-assist"],
+  "next": ["51B.2", "51B.3"]
+}

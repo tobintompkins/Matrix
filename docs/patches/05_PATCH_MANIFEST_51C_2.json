@@ -1,0 +1,17 @@
+{
+  "patch": "51C.2",
+  "title": "Predictive Business Analytics",
+  "type": "aggregation-forecasting",
+  "branch": "patch/51c-2-predictive-business-analytics",
+  "principle": "Explainable business forecasts inside Enterprise Intelligence; reuse 51C.1; never auto-mutate production records.",
+  "surface": {
+    "route": "/executive-command-center/predictive-analytics",
+    "featureFlag": "PREDICTIVE_BUSINESS_ANALYTICS_51C2"
+  },
+  "schema": "none",
+  "dependsOn": ["51C.1", "51A.5", "inventory", "pm", "service-calls", "matrix-assist"],
+  "docs": [
+    "docs/PREDICTIVE_BUSINESS_ANALYTICS.md",
+    "docs/PATCH_51C2_SAFETY.md"
+  ]
+}

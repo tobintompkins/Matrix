@@ -1,0 +1,3 @@
+{
+  "/api/matrix-assist/sessions/[id]/history-summary/route": "app/api/matrix-assist/sessions/[id]/history-summary/route.js"
+}

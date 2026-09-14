@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
+  EnterpriseTableToolbar,
   MatrixButton,
   MatrixCard,
   MatrixEmptyState,
-  MatrixSearchBar,
   MatrixStatCard,
   MatrixStatusBadge,
   MatrixTable,
+  exportRowsAsCsv,
+  useColumnVisibility,
   type MatrixTableColumn,
 } from "../components/ui";
 import {
@@ -68,11 +70,29 @@ type Row = {
   href: string;
 };
 
+const COLUMN_OPTIONS = [
+  { key: "workOrder", label: "Work Order", locked: true },
+  { key: "priority", label: "Priority" },
+  { key: "status", label: "Status", locked: true },
+  { key: "customer", label: "Customer / Site" },
+  { key: "model", label: "Model" },
+  { key: "asset", label: "Asset" },
+  { key: "issue", label: "Issue" },
+  { key: "technician", label: "Technician" },
+  { key: "created", label: "Created" },
+  { key: "scheduled", label: "Scheduled" },
+  { key: "open", label: "Open", locked: true },
+];
+
 export default function ServiceCallsDashboardPanel() {
   const [filters, setFilters] = useState<ServiceCallFilterState>(
     defaultServiceCallFilters(),
   );
   const [calls] = useState<ServiceCall[]>(() => listServiceCalls());
+  const columnsVisibility = useColumnVisibility(
+    "service-calls",
+    COLUMN_OPTIONS,
+  );
 
   const metrics = useMemo(() => computeServiceCallMetrics(calls), [calls]);
 
@@ -85,14 +105,14 @@ export default function ServiceCallsDashboardPanel() {
     () =>
       Array.from(
         new Set(calls.map((c) => c.assignment.technician).filter(Boolean)),
-      ).sort(),
+      ).sort() as string[],
     [calls],
   );
   const organizations = useMemo(
     () =>
       Array.from(
         new Set(calls.map((c) => c.machine.organization).filter(Boolean)),
-      ).sort(),
+      ).sort() as string[],
     [calls],
   );
 
@@ -124,8 +144,12 @@ export default function ServiceCallsDashboardPanel() {
     {
       key: "workOrder",
       header: "Work Order",
+      sortable: true,
       render: (row) => (
-        <Link href={row.href} className="font-semibold text-cyan-300 hover:text-cyan-200">
+        <Link
+          href={row.href}
+          className="font-semibold text-cyan-300 hover:text-cyan-200"
+        >
           {row.workOrder}
         </Link>
       ),
@@ -133,6 +157,7 @@ export default function ServiceCallsDashboardPanel() {
     {
       key: "priority",
       header: "Priority",
+      sortable: true,
       render: (row) => (
         <MatrixStatusBadge
           variant={getServiceCallPriorityBadgeVariant(
@@ -148,23 +173,26 @@ export default function ServiceCallsDashboardPanel() {
     {
       key: "status",
       header: "Status",
+      sortable: true,
       render: (row) => (
         <MatrixStatusBadge
-          variant={getServiceCallStatusBadgeVariant(row.status as ServiceCallStatus)}
+          variant={getServiceCallStatusBadgeVariant(
+            row.status as ServiceCallStatus,
+          )}
           label={getServiceCallStatusLabel(row.status as ServiceCallStatus)}
         />
       ),
     },
-    { key: "customer", header: "Customer / Site" },
-    { key: "model", header: "Model" },
-    { key: "asset", header: "Asset" },
-    { key: "issue", header: "Issue" },
-    { key: "technician", header: "Technician" },
-    { key: "created", header: "Created" },
-    { key: "scheduled", header: "Scheduled" },
+    { key: "customer", header: "Customer / Site", sortable: true },
+    { key: "model", header: "Model", sortable: true },
+    { key: "asset", header: "Asset", sortable: true },
+    { key: "issue", header: "Issue", sortable: true },
+    { key: "technician", header: "Technician", sortable: true },
+    { key: "created", header: "Created", sortable: true },
+    { key: "scheduled", header: "Scheduled", sortable: true },
     {
       key: "open",
-      header: "",
+      header: "Action",
       render: (row) => (
         <MatrixButton href={row.href} variant="secondary" size="sm">
           Open
@@ -180,8 +208,34 @@ export default function ServiceCallsDashboardPanel() {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }
 
-  const selectClass =
-    "rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white";
+  const activeFilterLabels = useMemo(() => {
+    const labels: string[] = [];
+    if (filters.search.trim()) labels.push(`Search: ${filters.search.trim()}`);
+    if (filters.status !== "ALL") {
+      labels.push(
+        `Status: ${getServiceCallStatusLabel(filters.status as ServiceCallStatus)}`,
+      );
+    }
+    if (filters.priority !== "ALL") {
+      labels.push(
+        `Priority: ${getServiceCallPriorityLabel(filters.priority as ServiceCallPriority)}`,
+      );
+    }
+    if (filters.serviceType !== "ALL") {
+      labels.push(
+        `Type: ${getServiceCallTypeLabel(filters.serviceType as ServiceCallType)}`,
+      );
+    }
+    if (filters.printerModel) labels.push(`Model: ${filters.printerModel}`);
+    if (filters.technician) labels.push(`Tech: ${filters.technician}`);
+    if (filters.customerSite.trim()) {
+      labels.push(`Customer: ${filters.customerSite.trim()}`);
+    }
+    if (filters.organization) labels.push(`Org: ${filters.organization}`);
+    if (filters.dateFrom) labels.push(`From: ${filters.dateFrom}`);
+    if (filters.dateTo) labels.push(`To: ${filters.dateTo}`);
+    return labels;
+  }, [filters]);
 
   return (
     <div className="mt-6 space-y-6">
@@ -193,181 +247,160 @@ export default function ServiceCallsDashboardPanel() {
         <MatrixStatCard
           label="Emergency"
           value={metrics.emergency}
-          accent={metrics.emergency > 0 ? "text-rose-400" : "text-white"}
+          accent={metrics.emergency > 0 ? "text-rose-400" : undefined}
         />
         <MatrixStatCard
           label="Waiting Parts"
           value={metrics.waitingForParts}
-          accent={
-            metrics.waitingForParts > 0 ? "text-amber-400" : "text-white"
-          }
+          accent={metrics.waitingForParts > 0 ? "text-amber-400" : undefined}
         />
         <MatrixStatCard label="Due Today" value={metrics.dueToday} />
         <MatrixStatCard
           label="Overdue"
           value={metrics.overdue}
-          accent={metrics.overdue > 0 ? "text-rose-400" : "text-white"}
+          accent={metrics.overdue > 0 ? "text-rose-400" : undefined}
         />
         <MatrixStatCard label="Closed This Week" value={metrics.closedThisWeek} />
       </div>
 
-      <MatrixCard title="Filters">
-        <div className="space-y-4">
-          <MatrixSearchBar
-            value={filters.search}
-            onValueChange={(v) => set("search", v)}
-            placeholder="Search WO, ID, asset, serial, customer, site, issue, error…"
-          />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">Status</span>
-              <select
-                className={selectClass + " w-full"}
-                value={filters.status}
-                onChange={(e) =>
-                  set("status", e.target.value as ServiceCallFilterState["status"])
-                }
-              >
-                <option value="ALL">All</option>
-                {SERVICE_CALL_STATUS_ORDER.map((s) => (
-                  <option key={s} value={s}>
-                    {getServiceCallStatusLabel(s)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">Priority</span>
-              <select
-                className={selectClass + " w-full"}
-                value={filters.priority}
-                onChange={(e) =>
-                  set(
-                    "priority",
-                    e.target.value as ServiceCallFilterState["priority"],
-                  )
-                }
-              >
-                <option value="ALL">All</option>
-                {PRIORITIES.map((p) => (
-                  <option key={p} value={p}>
-                    {getServiceCallPriorityLabel(p)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">Service Type</span>
-              <select
-                className={selectClass + " w-full"}
-                value={filters.serviceType}
-                onChange={(e) =>
-                  set(
-                    "serviceType",
-                    e.target.value as ServiceCallFilterState["serviceType"],
-                  )
-                }
-              >
-                <option value="ALL">All</option>
-                {TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {getServiceCallTypeLabel(t)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">Model</span>
-              <select
-                className={selectClass + " w-full"}
-                value={filters.printerModel}
-                onChange={(e) => set("printerModel", e.target.value)}
-              >
-                <option value="">All</option>
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">Technician</span>
-              <select
-                className={selectClass + " w-full"}
-                value={filters.technician}
-                onChange={(e) => set("technician", e.target.value)}
-              >
-                <option value="">All</option>
-                {technicians.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">Customer / Site</span>
-              <input
-                className={selectClass + " w-full"}
-                value={filters.customerSite}
-                onChange={(e) => set("customerSite", e.target.value)}
-                placeholder="Filter customer or site"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">Organization</span>
-              <select
-                className={selectClass + " w-full"}
-                value={filters.organization}
-                onChange={(e) => set("organization", e.target.value)}
-              >
-                <option value="">All</option>
-                {organizations.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">Sort</span>
-              <select
-                className={selectClass + " w-full"}
-                value={filters.sort}
-                onChange={(e) =>
-                  set("sort", e.target.value as ServiceCallFilterState["sort"])
-                }
-              >
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
-                <option value="priority">Highest priority</option>
-                <option value="scheduled">Scheduled date</option>
-                <option value="customer">Customer</option>
-                <option value="technician">Technician</option>
-                <option value="status">Status</option>
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">From</span>
-              <input
-                type="date"
-                className={selectClass + " w-full"}
-                value={filters.dateFrom}
-                onChange={(e) => set("dateFrom", e.target.value)}
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">To</span>
-              <input
-                type="date"
-                className={selectClass + " w-full"}
-                value={filters.dateTo}
-                onChange={(e) => set("dateTo", e.target.value)}
-              />
-            </label>
-          </div>
-
+      <EnterpriseTableToolbar
+        searchPlaceholder="Search service calls"
+        searchValue={filters.search}
+        onSearchChange={(value) => set("search", value)}
+        resultCount={rows.length}
+        resultLabel="service calls"
+        activeFilterLabels={activeFilterLabels}
+        onClearFilters={() => setFilters(defaultServiceCallFilters())}
+        onExport={() =>
+          exportRowsAsCsv("service-calls-filtered", rows, [
+            { key: "workOrder", header: "Work Order", value: (r) => r.workOrder },
+            { key: "priority", header: "Priority", value: (r) => r.priority },
+            { key: "status", header: "Status", value: (r) => r.status },
+            { key: "customer", header: "Customer", value: (r) => r.customer },
+            { key: "model", header: "Model", value: (r) => r.model },
+            { key: "asset", header: "Asset", value: (r) => r.asset },
+            { key: "issue", header: "Issue", value: (r) => r.issue },
+            {
+              key: "technician",
+              header: "Technician",
+              value: (r) => r.technician,
+            },
+            { key: "created", header: "Created", value: (r) => r.created },
+            { key: "scheduled", header: "Scheduled", value: (r) => r.scheduled },
+          ])
+        }
+        exportLabel="Export CSV (filtered results)"
+        columnOptions={COLUMN_OPTIONS}
+        visibleColumnKeys={columnsVisibility.visibleKeys}
+        onToggleColumn={columnsVisibility.toggle}
+        selectFilters={[
+          {
+            id: "status",
+            label: "Status",
+            value: filters.status === "ALL" ? "" : filters.status,
+            allLabel: "All statuses",
+            onChange: (value) =>
+              set("status", (value || "ALL") as ServiceCallFilterState["status"]),
+            options: SERVICE_CALL_STATUS_ORDER.map((s) => ({
+              value: s,
+              label: getServiceCallStatusLabel(s),
+            })),
+          },
+          {
+            id: "priority",
+            label: "Priority",
+            value: filters.priority === "ALL" ? "" : filters.priority,
+            allLabel: "All priorities",
+            onChange: (value) =>
+              set(
+                "priority",
+                (value || "ALL") as ServiceCallFilterState["priority"],
+              ),
+            options: PRIORITIES.map((p) => ({
+              value: p,
+              label: getServiceCallPriorityLabel(p),
+            })),
+          },
+          {
+            id: "serviceType",
+            label: "Job type",
+            value: filters.serviceType === "ALL" ? "" : filters.serviceType,
+            allLabel: "All types",
+            onChange: (value) =>
+              set(
+                "serviceType",
+                (value || "ALL") as ServiceCallFilterState["serviceType"],
+              ),
+            options: TYPES.map((t) => ({
+              value: t,
+              label: getServiceCallTypeLabel(t),
+            })),
+          },
+          {
+            id: "model",
+            label: "Model",
+            value: filters.printerModel,
+            allLabel: "All models",
+            onChange: (value) => set("printerModel", value),
+            options: models.map((m) => ({ value: m, label: m })),
+          },
+          {
+            id: "technician",
+            label: "Technician",
+            value: filters.technician,
+            allLabel: "All technicians",
+            onChange: (value) => set("technician", value),
+            options: technicians.map((t) => ({ value: t, label: t })),
+          },
+          {
+            id: "organization",
+            label: "Organization",
+            value: filters.organization,
+            allLabel: "All organizations",
+            onChange: (value) => set("organization", value),
+            options: organizations.map((o) => ({ value: o, label: o })),
+          },
+          {
+            id: "sort",
+            label: "Sort",
+            value: filters.sort,
+            onChange: (value) =>
+              set("sort", value as ServiceCallFilterState["sort"]),
+            options: [
+              { value: "newest", label: "Newest" },
+              { value: "oldest", label: "Oldest" },
+              { value: "priority", label: "Highest priority" },
+              { value: "scheduled", label: "Scheduled date" },
+              { value: "customer", label: "Customer" },
+              { value: "technician", label: "Technician" },
+              { value: "status", label: "Status" },
+            ],
+          },
+        ]}
+        textFilters={[
+          {
+            id: "customerSite",
+            label: "Customer / Site",
+            value: filters.customerSite,
+            onChange: (value) => set("customerSite", value),
+            placeholder: "Filter customer or site",
+          },
+          {
+            id: "dateFrom",
+            label: "From",
+            value: filters.dateFrom,
+            onChange: (value) => set("dateFrom", value),
+            type: "date",
+          },
+          {
+            id: "dateTo",
+            label: "To",
+            value: filters.dateTo,
+            onChange: (value) => set("dateTo", value),
+            type: "date",
+          },
+        ]}
+        secondaryFilters={
           <div className="flex flex-wrap gap-2">
             {(
               [
@@ -380,7 +413,7 @@ export default function ServiceCallsDashboardPanel() {
                 key={mode}
                 type="button"
                 onClick={() => set("view", mode)}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                className={`rounded-lg px-4 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${
                   filters.view === mode
                     ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-500/40"
                     : "bg-slate-800 text-slate-300 hover:bg-slate-700"
@@ -389,30 +422,50 @@ export default function ServiceCallsDashboardPanel() {
                 {label}
               </button>
             ))}
-            <MatrixButton
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setFilters(defaultServiceCallFilters())}
-            >
-              Reset Filters
-            </MatrixButton>
           </div>
-        </div>
-      </MatrixCard>
+        }
+      />
 
       {rows.length === 0 ? (
         <MatrixEmptyState
-          title="No service calls match"
-          description="Adjust filters or create a new service call."
-          actionLabel="New Service Call"
-          actionHref="/service-calls/new"
+          title={
+            activeFilterLabels.length > 0
+              ? "No service calls match these filters"
+              : "No service calls found"
+          }
+          description={
+            activeFilterLabels.length > 0
+              ? "Clear filters to view more results, or create a new service call."
+              : "Create a new service call to get started."
+          }
+          actionLabel={
+            activeFilterLabels.length > 0 ? "Clear filters" : "New Service Call"
+          }
+          actionHref={
+            activeFilterLabels.length > 0 ? undefined : "/service-calls/new"
+          }
+          onAction={
+            activeFilterLabels.length > 0
+              ? () => setFilters(defaultServiceCallFilters())
+              : undefined
+          }
         />
       ) : filters.view === "table" ? (
         <MatrixCard title={`Service Calls (${rows.length})`}>
-          <div className="overflow-x-auto">
-            <MatrixTable columns={columns} data={rows} rowKey={(r) => r.id} />
-          </div>
+          <MatrixTable
+            columns={columns}
+            data={rows}
+            rowKey={(r) => r.id}
+            searchable={false}
+            paginated
+            pageSize={25}
+            pageSizeOptions={[10, 25, 50, 100]}
+            visibleColumnKeys={columnsVisibility.visibleKeys}
+            stickyHeader
+            compact
+            emptyTitle="No service calls match these filters"
+            emptyDescription="Clear filters to view more results."
+          />
         </MatrixCard>
       ) : filters.view === "card" ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -453,7 +506,9 @@ export default function ServiceCallsDashboardPanel() {
                   variant={getServiceCallStatusBadgeVariant(
                     row.status as ServiceCallStatus,
                   )}
-                  label={getServiceCallStatusLabel(row.status as ServiceCallStatus)}
+                  label={getServiceCallStatusLabel(
+                    row.status as ServiceCallStatus,
+                  )}
                 />
                 <span className="text-xs text-slate-500">{row.technician}</span>
               </div>
@@ -498,7 +553,7 @@ export default function ServiceCallsDashboardPanel() {
                         <p className="font-semibold text-cyan-300">
                           {row.workOrder}
                         </p>
-                        <p className="mt-1 text-slate-300 line-clamp-2">
+                        <p className="mt-1 line-clamp-2 text-slate-300">
                           {row.issue}
                         </p>
                       </Link>

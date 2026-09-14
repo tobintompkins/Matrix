@@ -47,6 +47,8 @@ export default function DashboardActivityTable({
       rowKey={(row) => `${row.date}-${row.printer}`}
       searchable={false}
       paginated={false}
+      stickyHeader
+      compact
       statusConfig={{
         columnKey: "status",
         getVariant: (row) => ticketStatusToVariant(row.status),

@@ -27,6 +27,34 @@ type BriefingBundle = {
     items?: Array<{ label: string; value: string; href?: string }>;
   }>;
   risks: Array<{ title: string; detail: string; href?: string }>;
+  dailyExecutive?: {
+    todaysPriorities: string[];
+    machineDownSummary: string;
+    criticalCustomers: string[];
+    pmCompliance: string;
+    inventoryShortages: string;
+    upcomingPmWorkload: string;
+    openServiceCalls: string;
+    highCostRepairs: string[];
+    recommendedActions: Array<{
+      title: string;
+      rationale: string;
+      priority: string;
+      executable: false;
+      href?: string;
+    }>;
+    confidence: number;
+  } | null;
+  weeklyExecutive?: {
+    serviceMetrics: string[];
+    pmMetrics: string[];
+    inventoryMetrics: string[];
+    customerTrends: string[];
+    aiRecommendations: string[];
+    operationalRisks: string[];
+    confidence: number;
+    href: string;
+  } | null;
 };
 
 function Body() {
@@ -146,6 +174,101 @@ function Body() {
               ))}
             </ul>
           </MatrixCard>
+          {data.dailyExecutive ? (
+            <MatrixCard className="space-y-3 p-4">
+              <h2 className="text-lg font-medium text-slate-100">
+                Daily executive briefing
+              </h2>
+              <p className="text-xs text-slate-500">
+                Copilot confidence {data.dailyExecutive.confidence}% · actions not
+                executed
+              </p>
+              <ul className="space-y-1 text-sm text-slate-300">
+                <li>
+                  <span className="text-slate-500">Priorities:</span>{" "}
+                  {data.dailyExecutive.todaysPriorities.join("; ") || "—"}
+                </li>
+                <li>
+                  <span className="text-slate-500">Machine down:</span>{" "}
+                  {data.dailyExecutive.machineDownSummary}
+                </li>
+                <li>
+                  <span className="text-slate-500">Critical customers:</span>{" "}
+                  {data.dailyExecutive.criticalCustomers.join("; ")}
+                </li>
+                <li>
+                  <span className="text-slate-500">PM compliance:</span>{" "}
+                  {data.dailyExecutive.pmCompliance}
+                </li>
+                <li>
+                  <span className="text-slate-500">Inventory:</span>{" "}
+                  {data.dailyExecutive.inventoryShortages}
+                </li>
+                <li>
+                  <span className="text-slate-500">Upcoming PM:</span>{" "}
+                  {data.dailyExecutive.upcomingPmWorkload}
+                </li>
+                <li>
+                  <span className="text-slate-500">Open calls:</span>{" "}
+                  {data.dailyExecutive.openServiceCalls}
+                </li>
+                <li>
+                  <span className="text-slate-500">High-cost repairs:</span>{" "}
+                  {data.dailyExecutive.highCostRepairs.join("; ")}
+                </li>
+              </ul>
+              <ul className="mt-2 space-y-1 text-sm text-amber-200/90">
+                {data.dailyExecutive.recommendedActions.map((r) => (
+                  <li key={r.title}>
+                    [{r.priority}]{" "}
+                    {r.href ? (
+                      <Link href={r.href} className="text-cyan-300 hover:underline">
+                        {r.title}
+                      </Link>
+                    ) : (
+                      r.title
+                    )}
+                    <span className="block text-xs text-slate-500">{r.rationale}</span>
+                  </li>
+                ))}
+              </ul>
+            </MatrixCard>
+          ) : null}
+          {data.weeklyExecutive ? (
+            <MatrixCard className="space-y-3 p-4">
+              <h2 className="text-lg font-medium text-slate-100">
+                Weekly executive report
+              </h2>
+              <p className="text-xs text-slate-500">
+                Confidence {data.weeklyExecutive.confidence}% ·{" "}
+                <Link
+                  href={data.weeklyExecutive.href}
+                  className="text-cyan-300 hover:underline"
+                >
+                  Open report center
+                </Link>
+              </p>
+              {(
+                [
+                  ["Service", data.weeklyExecutive.serviceMetrics],
+                  ["PM", data.weeklyExecutive.pmMetrics],
+                  ["Inventory", data.weeklyExecutive.inventoryMetrics],
+                  ["Customers", data.weeklyExecutive.customerTrends],
+                  ["AI recommendations", data.weeklyExecutive.aiRecommendations],
+                  ["Operational risks", data.weeklyExecutive.operationalRisks],
+                ] as const
+              ).map(([label, rows]) => (
+                <div key={label}>
+                  <h3 className="text-sm font-medium text-slate-200">{label}</h3>
+                  <ul className="mt-1 space-y-1 text-sm text-slate-400">
+                    {rows.map((r) => (
+                      <li key={r}>· {r}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </MatrixCard>
+          ) : null}
           {data.risks.length > 0 ? (
             <MatrixCard className="p-4">
               <h2 className="text-lg font-medium text-slate-100">

@@ -16,11 +16,11 @@ function Body() {
     <div className="mx-auto max-w-7xl space-y-6 px-1 py-2">
       <header>
         <h1 className="text-2xl font-semibold text-slate-100">
-          Technician metrics
+          Technician productivity
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          Coverage and open-call workload from the dispatch roster and service
-          calls.
+          Closed-in-range completions, completion rate, and workload vs assumed
+          capacity from the dispatch roster and service calls.
         </p>
       </header>
       <ExecutiveNav range={range} onRangeChange={setRange} />
@@ -51,7 +51,9 @@ function Body() {
                   <th className="px-2 py-2">Status</th>
                   <th className="px-2 py-2">Open</th>
                   <th className="px-2 py-2">Critical</th>
-                  <th className="px-2 py-2">Workload hrs</th>
+                  <th className="px-2 py-2">Closed in range</th>
+                  <th className="px-2 py-2">Completion %</th>
+                  <th className="px-2 py-2">Workload / capacity</th>
                   <th className="px-2 py-2">Territory</th>
                 </tr>
               </thead>
@@ -66,7 +68,16 @@ function Body() {
                     <td className="px-2 py-2">{t.status}</td>
                     <td className="px-2 py-2">{t.openCalls}</td>
                     <td className="px-2 py-2">{t.criticalCalls}</td>
-                    <td className="px-2 py-2">{t.workloadHours}</td>
+                    <td className="px-2 py-2">{t.closedInRange}</td>
+                    <td className="px-2 py-2">
+                      {t.completionRate == null ? "—" : `${t.completionRate}%`}
+                    </td>
+                    <td className="px-2 py-2 text-slate-400">
+                      {t.workloadHours}h / {t.capacityHours}h
+                      {t.workloadVsCapacityPct != null
+                        ? ` (${t.workloadVsCapacityPct}%)`
+                        : ""}
+                    </td>
                     <td className="px-2 py-2 text-slate-400">{t.territory}</td>
                   </tr>
                 ))}
@@ -81,7 +92,7 @@ function Body() {
 
 export default function ExecutiveTechniciansPage() {
   return (
-    <MatrixShell title="Technician metrics" activePath="/executive-command-center">
+    <MatrixShell title="Technician productivity" activePath="/executive-command-center">
       <MatrixAuthGuard requiredPermissions={["VIEW_EXECUTIVE_COMMAND_CENTER"]}>
         <Suspense fallback={<p className="text-sm text-slate-400">Loading…</p>}>
           <Body />

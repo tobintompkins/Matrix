@@ -1,4 +1,5 @@
 "use client";
+import { useFieldIdentity } from "@/app/field/FieldIdentityProvider";
 
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -7,10 +8,9 @@ import { enqueueOperation, savePendingAttachment } from "@/lib/field";
 import { getMaintenanceProfile } from "@/lib/maintenance";
 import { validateWholeNonNegativeCount } from "@/lib/maintenance/calculations";
 
-const TECH = "Toby Tompkins";
-const TECH_ID = "tech-toby";
 
 function CopyCountForm() {
+  const { technicianName: TECH, userId: TECH_ID } = useFieldIdentity();
   const params = useSearchParams();
   const printerId = params.get("printerId") ?? "";
   const workOrderId = params.get("workOrderId") ?? "";

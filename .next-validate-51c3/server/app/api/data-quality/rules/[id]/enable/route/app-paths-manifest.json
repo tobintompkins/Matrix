@@ -1,0 +1,3 @@
+{
+  "/api/data-quality/rules/[id]/enable/route": "app/api/data-quality/rules/[id]/enable/route.js"
+}

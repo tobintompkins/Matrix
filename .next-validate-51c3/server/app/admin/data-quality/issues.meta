@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admin/layout,_N_T_/admin/data-quality/layout,_N_T_/admin/data-quality/issues/layout,_N_T_/admin/data-quality/issues/page,_N_T_/admin/data-quality/issues"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admin/data-quality/issues/__PAGE__",
+    "/admin/data-quality/issues",
+    "/admin/data-quality",
+    "/admin",
+    "/_index",
+    "/_head"
+  ]
+}

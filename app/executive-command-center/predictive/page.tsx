@@ -21,10 +21,11 @@ function Body() {
     <div className="mx-auto max-w-7xl space-y-6 px-1 py-2">
       <header>
         <h1 className="text-2xl font-semibold text-slate-100">
-          Predictive maintenance analytics
+          Predictive maintenance trends
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          Rollup of existing predictive health snapshots and open risk alerts.
+          Rollup of existing predictive health snapshots, open risk alerts, and
+          daily risk trend series.
         </p>
       </header>
       <ExecutiveNav range={range} onRangeChange={setRange} />
@@ -93,6 +94,35 @@ function Body() {
                     </p>
                   </li>
                 ))}
+              </ul>
+            )}
+          </MatrixCard>
+          <MatrixCard className="p-4">
+            <h2 className="mb-3 text-lg font-medium text-slate-100">
+              Predictive risk trend (snapshots by day)
+            </h2>
+            {!p.trendSeries?.length ||
+            p.trendSeries.every(
+              (d) => d.evaluated === 0 && d.highRisk === 0 && d.criticalRisk === 0,
+            ) ? (
+              <p className="text-sm text-slate-400">
+                No snapshot activity in this range yet.
+              </p>
+            ) : (
+              <ul className="max-h-64 space-y-1 overflow-y-auto text-xs text-slate-400">
+                {p.trendSeries
+                  .filter((d) => d.evaluated > 0 || d.highRisk > 0 || d.criticalRisk > 0)
+                  .slice(-21)
+                  .map((d) => (
+                    <li key={d.date} className="flex flex-wrap gap-3">
+                      <span className="w-24 text-slate-500">{d.date}</span>
+                      <span>eval {d.evaluated}</span>
+                      <span className="text-amber-300">high {d.highRisk}</span>
+                      <span className="text-rose-300">
+                        critical {d.criticalRisk}
+                      </span>
+                    </li>
+                  ))}
               </ul>
             )}
           </MatrixCard>

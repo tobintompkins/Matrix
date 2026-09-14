@@ -1,0 +1,17 @@
+{
+  "status": 307,
+  "headers": {
+    "location": "/dashboard",
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/service-hub/layout,_N_T_/service-hub/page,_N_T_/service-hub"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/service-hub/__PAGE__",
+    "/service-hub",
+    "/_index",
+    "/_head"
+  ]
+}

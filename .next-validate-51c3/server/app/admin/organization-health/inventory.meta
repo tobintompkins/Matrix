@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admin/layout,_N_T_/admin/organization-health/layout,_N_T_/admin/organization-health/inventory/layout,_N_T_/admin/organization-health/inventory/page,_N_T_/admin/organization-health/inventory"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admin/organization-health/inventory/__PAGE__",
+    "/admin/organization-health/inventory",
+    "/admin/organization-health",
+    "/admin",
+    "/_index",
+    "/_head"
+  ]
+}

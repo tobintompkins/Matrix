@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/portal/layout,_N_T_/portal/tickets/layout,_N_T_/portal/tickets/new/layout,_N_T_/portal/tickets/new/page,_N_T_/portal/tickets/new"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/portal/tickets/new/__PAGE__",
+    "/portal/tickets/new",
+    "/portal/tickets",
+    "/portal",
+    "/_index",
+    "/_head"
+  ]
+}

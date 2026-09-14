@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/dispatch/layout,_N_T_/dispatch/mobile/layout,_N_T_/dispatch/mobile/page,_N_T_/dispatch/mobile"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/dispatch/mobile/__PAGE__",
+    "/dispatch/mobile",
+    "/dispatch",
+    "/_index",
+    "/_head"
+  ]
+}

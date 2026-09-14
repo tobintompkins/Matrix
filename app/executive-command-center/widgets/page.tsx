@@ -48,7 +48,15 @@ function Body() {
           Dashboard widgets
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          Lazy-loaded widget panels with pagination from the reporting bundle.
+          Executive reporting widgets (cost, PM, inventory, customers). Named
+          Copilot widget shortcuts live on{" "}
+          <Link
+            href="/executive-command-center/ai-insights"
+            className="text-cyan-300 hover:underline"
+          >
+            AI Copilot
+          </Link>
+          .
         </p>
       </header>
       <ExecutiveNav

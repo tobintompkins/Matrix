@@ -303,6 +303,95 @@ export async function syncExecutiveAlerts(organizationId = DEFAULT_ORG_ID) {
     /* decisions optional */
   }
 
+  // Patch 51C.1 — merge high-severity Organization Health alerts (dedupe by source id)
+  try {
+    const { isEnterpriseIntelligence51c1Enabled } = await import("./feature-flag");
+    if (isEnterpriseIntelligence51c1Enabled()) {
+      const { listOrgHealthBridgeAlerts } = await import("./org-health-bridge");
+      const ohAlerts = await listOrgHealthBridgeAlerts(organizationId);
+      for (const a of ohAlerts) {
+        if (!["CRITICAL", "HIGH"].includes(a.severity)) continue;
+        const key = `org-health:${a.id}`;
+        const existing = await prisma.executiveAlert.findFirst({
+          where: {
+            organizationId,
+            alertKey: key,
+            status: { in: ["OPEN", "ACKNOWLEDGED"] },
+          },
+        });
+        if (existing) continue;
+        await prisma.executiveAlert.create({
+          data: {
+            organizationId,
+            alertKey: key,
+            category: "organization-health",
+            severity: a.severity as ExecutiveAlertSeverity,
+            title: a.title,
+            explanation: `Organization Health alert (${a.status}).`,
+            href: a.href,
+            recommendedAction: "Review Organization Health alerts and assigned owners.",
+            sourceType: "OrganizationHealthAlert",
+            sourceRecordId: a.id,
+            status: "OPEN",
+          },
+        });
+        upserted += 1;
+      }
+    }
+  } catch {
+    /* org-health optional */
+  }
+
+  // Patch 51C.2 — Predictive Business Analytics alerts (dedupe by alertKey)
+  try {
+    const { collectPredictiveBusinessAlertCandidates } = await import(
+      "./predictive-business/alerts"
+    );
+    const pba = await collectPredictiveBusinessAlertCandidates();
+    for (const c of pba) {
+      const existing = await prisma.executiveAlert.findFirst({
+        where: {
+          organizationId,
+          alertKey: c.alertKey,
+          status: { in: ["OPEN", "ACKNOWLEDGED"] },
+        },
+      });
+      if (existing) {
+        await prisma.executiveAlert.update({
+          where: { id: existing.id },
+          data: {
+            severity: c.severity,
+            title: c.title,
+            explanation: c.explanation,
+            href: c.href,
+            recommendedAction: c.recommendedAction,
+            sourceType: c.sourceType,
+            sourceRecordId: c.sourceRecordId,
+          },
+        });
+      } else {
+        await prisma.executiveAlert.create({
+          data: {
+            organizationId,
+            alertKey: c.alertKey,
+            category: c.category,
+            severity: c.severity,
+            title: c.title,
+            explanation: c.explanation,
+            href: c.href,
+            recommendedAction: c.recommendedAction,
+            sourceType: c.sourceType,
+            sourceRecordId: c.sourceRecordId,
+            status: "OPEN",
+          },
+        });
+      }
+      upserted += 1;
+    }
+  } catch {
+    /* predictive business optional */
+  }
+
   return { upserted, candidates: candidates.length };
 }
 

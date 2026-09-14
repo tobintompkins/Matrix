@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admin/layout,_N_T_/admin/approvals/layout,_N_T_/admin/approvals/new/layout,_N_T_/admin/approvals/new/page,_N_T_/admin/approvals/new"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admin/approvals/new/__PAGE__",
+    "/admin/approvals/new",
+    "/admin/approvals",
+    "/admin",
+    "/_index",
+    "/_head"
+  ]
+}

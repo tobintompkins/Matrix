@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/maintenance/layout,_N_T_/maintenance/history/layout,_N_T_/maintenance/history/page,_N_T_/maintenance/history"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/maintenance/history/__PAGE__",
+    "/maintenance/history",
+    "/maintenance",
+    "/_index",
+    "/_head"
+  ]
+}

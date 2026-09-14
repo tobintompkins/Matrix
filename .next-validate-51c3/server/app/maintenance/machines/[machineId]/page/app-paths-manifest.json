@@ -1,0 +1,3 @@
+{
+  "/maintenance/machines/[machineId]/page": "app/maintenance/machines/[machineId]/page.js"
+}

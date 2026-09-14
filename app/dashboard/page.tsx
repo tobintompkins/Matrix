@@ -6,10 +6,11 @@ import MatrixShell from "../components/MatrixShell";
 import FleetCopyCountsCard from "../components/maintenance/FleetCopyCountsCard";
 import PmDashboardSummaryCard from "../components/maintenance/PmDashboardSummaryCard";
 import {
-  MatrixButton,
+  MatrixEmptyState,
   MatrixInfoPanel,
-  MatrixSearchBar,
+  MatrixPageHeader,
   MatrixSection,
+  MatrixTableToolbar,
 } from "../components/ui";
 import DashboardActivityTable, {
   type ActivityRow,
@@ -17,6 +18,9 @@ import DashboardActivityTable, {
 import DashboardOpsPanel from "./DashboardOpsPanel";
 import ServiceHubWelcome from "./ServiceHubWelcome";
 import { listServiceCalls, subscribeServiceCalls } from "@/lib/service-calls";
+
+const SERVICE_HUB_DESCRIPTION =
+  "Start a task, check work that needs attention, or review recent updates.";
 
 function buildRecentActivity(): ActivityRow[] {
   const openish = new Set([
@@ -60,102 +64,139 @@ function buildRecentActivity(): ActivityRow[] {
 }
 
 /**
- * Patch 47 — Service Hub (existing /dashboard page).
- * Single H1 comes from MatrixShell ("Service Hub"); page content does not repeat it.
+ * Patch 52A.2 — Service Hub enterprise operations dashboard.
+ * Existing widgets are preserved and restyled into the dashboard layout.
  */
 export default function DashboardPage() {
   const [tick, setTick] = useState(0);
+  const [activitySearch, setActivitySearch] = useState("");
+  const [activityStatus, setActivityStatus] = useState("");
+
   useEffect(() => subscribeServiceCalls(() => setTick((t) => t + 1)), []);
   const recentActivity = useMemo(() => {
     void tick;
     return buildRecentActivity();
   }, [tick]);
 
+  const filteredActivity = useMemo(() => {
+    const q = activitySearch.trim().toLowerCase();
+    return recentActivity.filter((row) => {
+      if (activityStatus && row.status !== activityStatus) return false;
+      if (!q) return true;
+      return (
+        row.customer.toLowerCase().includes(q) ||
+        row.printer.toLowerCase().includes(q) ||
+        row.issue.toLowerCase().includes(q) ||
+        row.status.toLowerCase().includes(q)
+      );
+    });
+  }, [recentActivity, activitySearch, activityStatus]);
+
   return (
     <MatrixShell title="Service Hub" activePath="/dashboard">
-      <nav
-        aria-label="Breadcrumb"
-        className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500"
-      >
-        <span>Matrix</span>
-        <span aria-hidden>/</span>
-        <span>Service Platform</span>
-        <span aria-hidden>/</span>
-        <span className="text-cyan-400">Service Hub</span>
+      <div className="matrix-page-stack matrix-hub">
+      <MatrixPageHeader
+        title="Your service workspace"
+        breadcrumbs={["Matrix", "Workspace", "Service Hub"]}
+        description={SERVICE_HUB_DESCRIPTION}
+      />
+
+      <ServiceHubWelcome />
+
+      <nav aria-label="Service Hub sections" className="flex flex-wrap gap-2">
+        {[
+          ["#hub-work", "Tasks & daily work"],
+          ["#hub-details", "Maintenance & fleet details"],
+          ["#hub-activity", "Recent activity"],
+        ].map(([href, label]) => (
+          <a key={href} href={href}
+            className="rounded-lg border border-[color:var(--matrix-border)] px-4 py-2 text-sm font-medium text-[color:var(--matrix-accent)] hover:bg-[color:var(--matrix-surface)] focus-visible:outline-2 focus-visible:outline-cyan-400">
+            {label}
+          </a>
+        ))}
       </nav>
 
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <ServiceHubWelcome />
-        <div className="flex flex-wrap gap-2">
-          <MatrixButton href="/service-calls/new" variant="primary" size="md">
-            Create Service Call
-          </MatrixButton>
-          <MatrixButton href="/order-parts" variant="secondary" size="md">
-            Order Parts
-          </MatrixButton>
-        </div>
-      </div>
-
-      <div className="mb-6">
+      <section id="hub-work" aria-label="Tasks and daily work" className="scroll-mt-20">
         <DashboardOpsPanel />
-      </div>
+      </section>
 
-      <div className="mb-6">
+      <details id="hub-details" className="scroll-mt-20 rounded-2xl border border-[color:var(--matrix-border)] bg-[color:var(--matrix-card-bg)]">
+        <summary className="cursor-pointer rounded-2xl p-5 font-semibold focus-visible:outline-2 focus-visible:outline-cyan-400">
+          Maintenance & fleet details
+          <span className="mt-1 block text-sm font-normal text-[color:var(--matrix-muted)]">
+            Expand for PM summaries, workflow context, and fleet copy counts.
+          </span>
+        </summary>
+        <div className="matrix-page-stack p-4 pt-0 sm:p-5 sm:pt-0">
         <PmDashboardSummaryCard />
-      </div>
-
-      <ContextPanel className="mb-6" />
-
-      <div className="mb-6">
-        <MatrixSearchBar
-          id="global-search"
-          placeholder="Search printers, customers, tickets, serial numbers…"
-          aria-label="Search Service Hub"
-        />
-      </div>
-
-      <div className="mb-6">
+        <ContextPanel />
         <FleetCopyCountsCard />
-      </div>
+        </div>
+      </details>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div id="hub-activity" className="grid scroll-mt-20 gap-6 lg:grid-cols-3">
         <MatrixSection
           title="Recent Activity"
           subtitle="Newest service-call updates first (limited to 10)."
           className="lg:col-span-2"
         >
-          {recentActivity.length === 0 ? (
-            <p className="text-sm text-slate-500">No open service calls.</p>
+          <MatrixTableToolbar
+            searchPlaceholder="Search recent activity…"
+            searchValue={activitySearch}
+            onSearchChange={setActivitySearch}
+            statusFilter={activityStatus}
+            onStatusFilterChange={setActivityStatus}
+            statusOptions={[
+              { value: "Open", label: "Open" },
+              { value: "In Progress", label: "In Progress" },
+              { value: "Waiting Parts", label: "Waiting Parts" },
+              { value: "Completed", label: "Completed" },
+            ]}
+            onClearFilters={() => {
+              setActivitySearch("");
+              setActivityStatus("");
+            }}
+            compact
+          />
+          {filteredActivity.length === 0 ? (
+            <MatrixEmptyState
+              title="No matching activity"
+              description="Try clearing filters, or create a new service call to get started."
+              actionLabel="New Service Call"
+              actionHref="/service-calls/new"
+              className="py-10"
+            />
           ) : (
             <div className="overflow-x-auto">
-              <DashboardActivityTable data={recentActivity} />
+              <DashboardActivityTable data={filteredActivity} />
             </div>
           )}
         </MatrixSection>
 
         <MatrixInfoPanel
-          title="Navigation tips"
-          subtitle="Use the sidebar to open existing modules. This page reuses live data — no duplicate landing page."
+          title="Find your way around"
+          subtitle="Use Find a page in the menu to jump to a tool, or browse the familiar sections below."
         >
-          <ul className="space-y-2 text-sm text-slate-300">
+          <ul className="space-y-2 text-sm text-[color:var(--foreground)]">
             <li>
-              <span className="text-slate-500">Service calls → </span>
-              create, assign, and close field work
+              <span className="text-[color:var(--matrix-muted)]">Service Operations → </span>
+              calls, dispatch, PM schedule, and field work
             </li>
             <li>
-              <span className="text-slate-500">Preventive Maintenance → </span>
-              meters, checklists, and PM history
+              <span className="text-[color:var(--matrix-muted)]">Machines → </span>
+              fleet database, Digital Twin, meters, and history
             </li>
             <li>
-              <span className="text-slate-500">Customers / Fleet → </span>
-              accounts and machines
+              <span className="text-[color:var(--matrix-muted)]">Parts & Inventory → </span>
+              stock, requests, PM kits, and ordering tools
             </li>
             <li>
-              <span className="text-slate-500">Inventory → </span>
-              parts, stock, and purchase requests
+              <span className="text-[color:var(--matrix-muted)]">Matrix AI → </span>
+              Assist, operations, decisions, and automations
             </li>
           </ul>
         </MatrixInfoPanel>
+      </div>
       </div>
     </MatrixShell>
   );

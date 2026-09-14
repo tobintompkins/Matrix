@@ -1,0 +1,13 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/executive-command-center/predictive-analytics/risk-override/route.js")
+R.c("server/chunks/[root-of-the-server]__0i0wtlu._.js")
+R.c("server/chunks/lib_service-calls_index_ts_1pg5y58._.js")
+R.c("server/chunks/node_modules_next_dist_1_lpwll._.js")
+R.c("server/chunks/lib_auth_permissions_ts_1qwthzt._.js")
+R.c("server/chunks/[root-of-the-server]__202_lon._.js")
+R.c("server/chunks/node_modules_0t5_ff-._.js")
+R.c("server/chunks/[root-of-the-server]__1r01cl_._.js")
+R.c("server/chunks/lib_crm_repository_ts_1qe6se3._.js")
+R.c("server/chunks/[root-of-the-server]__1j-n-di._.js")
+R.c("server/chunks/0-vi_xecutive-command-center_predictive-analytics_risk-override_route_actions_0g1db9y.js")
+R.m(707956)
+module.exports=R.m(707956).exports

@@ -1,0 +1,18 @@
+{
+  "status": 307,
+  "headers": {
+    "location": "/portal/printers",
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/portal/layout,_N_T_/portal/equipment/layout,_N_T_/portal/equipment/page,_N_T_/portal/equipment"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/portal/equipment/__PAGE__",
+    "/portal/equipment",
+    "/portal",
+    "/_index",
+    "/_head"
+  ]
+}

@@ -1,4 +1,5 @@
 "use client";
+import { useFieldIdentity } from "@/app/field/FieldIdentityProvider";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -28,8 +29,6 @@ import {
   listWorkOrderTimeline,
 } from "@/lib/work-orders";
 
-const TECH = "Toby Tompkins";
-const TECH_ID = "tech-toby";
 
 function Section({
   title,
@@ -72,6 +71,7 @@ const SESSION_ACTIONS: WorkSessionAction[] = [
 ];
 
 export default function FieldWorkDetailPage() {
+  const { technicianName: TECH, userId: TECH_ID } = useFieldIdentity();
   const params = useParams();
   const workOrderId = String(params.workOrderId ?? "");
   const [tick, setTick] = useState(0);
@@ -90,9 +90,9 @@ export default function FieldWorkDetailPage() {
   }, []);
 
   useEffect(() => {
-    void getSessionForWorkOrder(workOrderId).then(setSession);
+    void getSessionForWorkOrder(workOrderId, TECH_ID).then(setSession);
     void getOfflinePackage(workOrderId, TECH_ID).then(setPkg);
-  }, [workOrderId, tick]);
+  }, [workOrderId, tick, TECH_ID]);
 
   const order = useMemo(() => {
     void tick;

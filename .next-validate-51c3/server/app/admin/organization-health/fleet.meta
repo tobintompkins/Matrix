@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admin/layout,_N_T_/admin/organization-health/layout,_N_T_/admin/organization-health/fleet/layout,_N_T_/admin/organization-health/fleet/page,_N_T_/admin/organization-health/fleet"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admin/organization-health/fleet/__PAGE__",
+    "/admin/organization-health/fleet",
+    "/admin/organization-health",
+    "/admin",
+    "/_index",
+    "/_head"
+  ]
+}

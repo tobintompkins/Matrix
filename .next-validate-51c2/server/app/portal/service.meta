@@ -1,0 +1,18 @@
+{
+  "status": 307,
+  "headers": {
+    "location": "/portal/tickets",
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/portal/layout,_N_T_/portal/service/layout,_N_T_/portal/service/page,_N_T_/portal/service"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/portal/service/__PAGE__",
+    "/portal/service",
+    "/portal",
+    "/_index",
+    "/_head"
+  ]
+}

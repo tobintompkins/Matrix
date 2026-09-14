@@ -12,6 +12,8 @@ import { OPEN_DECISION_STATUSES } from "@/lib/decision-engine/types";
 import { computeExecutiveFleetHealth } from "./fleet-health";
 import { prioritySortKey, sortExecutivePriorities } from "./priorities";
 import { buildExecutiveBriefing } from "./briefing";
+import { isEnterpriseIntelligence51c1Enabled } from "./feature-flag";
+import { getOrgHealthBridge } from "./org-health-bridge";
 import type {
   EnterpriseStatusPanel,
   ExecutiveCommandCenterSummary,
@@ -348,8 +350,13 @@ export async function getExecutiveCommandCenterSummary(
       items: [
         { label: "Active machines", value: String(activeMachines), href: "/fleet" },
         { label: "At predictive risk", value: String(atRisk.length) },
+        {
+          label: "Explain factors",
+          value: String(fleetHealth.factors.length),
+          href: "/executive-command-center?focus=fleet",
+        },
       ],
-      href: "/fleet",
+      href: "/executive-command-center",
     },
     {
       key: "service",
@@ -414,9 +421,9 @@ export async function getExecutiveCommandCenterSummary(
       items: technicians.slice(0, 3).map((t) => ({
         label: t.name,
         value: t.status,
-        href: "/dispatch",
+        href: "/field",
       })),
-      href: "/dispatch",
+      href: "/executive-command-center/technicians",
     },
     {
       key: "ai",
@@ -444,6 +451,62 @@ export async function getExecutiveCommandCenterSummary(
     },
   ];
 
+  const eiEnabled = isEnterpriseIntelligence51c1Enabled();
+  let organizationHealth: ExecutiveCommandCenterSummary["organizationHealth"] =
+    null;
+  if (eiEnabled) {
+    const bridge = await getOrgHealthBridge(organizationId);
+    organizationHealth = {
+      enabled: bridge.enabled,
+      overallScore: bridge.overallScore,
+      classification: bridge.classification,
+      availableCategories: bridge.availableCategories,
+      href: bridge.href,
+      message: bridge.message,
+    };
+    if (bridge.enabled) {
+      panels.unshift({
+        key: "organizationHealth",
+        title: "Organization Health",
+        status:
+          bridge.classification === "Critical" ||
+          bridge.classification === "At Risk"
+            ? "attention"
+            : bridge.classification === "Watch"
+              ? "watch"
+              : bridge.overallScore == null
+                ? "unknown"
+                : "ok",
+        headline:
+          bridge.overallScore == null
+            ? bridge.message ?? "Score unavailable"
+            : `Score ${bridge.overallScore} · ${bridge.classification}`,
+        items: bridge.kpis.slice(0, 3).map((k) => ({
+          label: k.label,
+          value: k.value,
+          href: bridge.href,
+        })),
+        href: bridge.href,
+      });
+    }
+  }
+
+  const recommendations = sortedPriorities
+    .filter(
+      (p) =>
+        p.source === "Decision Engine" ||
+        p.source === "Predictive Maintenance",
+    )
+    .slice(0, 12)
+    .map((p) => ({
+      id: p.id,
+      title: p.title,
+      reason: p.reason,
+      href: p.href,
+      source: p.source,
+      severity: p.severity,
+    }));
+
   const empty =
     activeMachines === 0 &&
     openCalls.length === 0 &&
@@ -456,6 +519,9 @@ export async function getExecutiveCommandCenterSummary(
     dataStatus:
       dataCompleteness >= 80 ? "live" : dataCompleteness >= 40 ? "partial" : "empty",
     fleetHealth,
+    organizationHealth,
+    recommendations,
+    enterpriseIntelligenceEnabled: eiEnabled,
     kpis,
     priorities: sortedPriorities,
     aiBriefing,

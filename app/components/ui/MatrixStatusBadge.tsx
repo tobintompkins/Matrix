@@ -2,11 +2,18 @@ import { cn } from "./utils";
 
 export type MatrixStatusVariant =
   | "active"
+  | "open"
+  | "in-progress"
+  | "waiting"
+  | "waiting-parts"
   | "warning"
   | "error"
+  | "critical"
+  | "overdue"
   | "completed"
-  | "waiting-parts"
-  | "offline";
+  | "healthy"
+  | "offline"
+  | "neutral";
 
 export type MatrixStatusBadgeProps = {
   variant: MatrixStatusVariant;
@@ -16,21 +23,34 @@ export type MatrixStatusBadgeProps = {
 
 const variantStyles: Record<MatrixStatusVariant, string> = {
   active: "bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30",
+  open: "bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30",
+  "in-progress": "bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30",
+  waiting: "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30",
+  "waiting-parts": "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30",
   warning: "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30",
   error: "bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30",
+  critical: "bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30",
+  overdue: "bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30",
   completed: "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30",
-  "waiting-parts":
-    "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30",
+  healthy: "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30",
   offline: "bg-slate-700/50 text-slate-400 ring-1 ring-slate-600",
+  neutral: "bg-slate-700/40 text-slate-300 ring-1 ring-slate-600/80",
 };
 
 const variantLabels: Record<MatrixStatusVariant, string> = {
   active: "Active",
+  open: "Open",
+  "in-progress": "In Progress",
+  waiting: "Waiting",
+  "waiting-parts": "Waiting Parts",
   warning: "Warning",
   error: "Error",
+  critical: "Critical",
+  overdue: "Overdue",
   completed: "Completed",
-  "waiting-parts": "Waiting Parts",
+  healthy: "Healthy",
   offline: "Offline",
+  neutral: "Info",
 };
 
 export default function MatrixStatusBadge({
@@ -51,18 +71,19 @@ export default function MatrixStatusBadge({
   );
 }
 
-export function ticketStatusToVariant(
-  status: string,
-): MatrixStatusVariant {
+export function ticketStatusToVariant(status: string): MatrixStatusVariant {
   switch (status) {
     case "Open":
-      return "active";
+      return "open";
     case "In Progress":
-      return "warning";
+      return "in-progress";
+    case "Waiting":
     case "Waiting Parts":
       return "waiting-parts";
     case "Completed":
       return "completed";
+    case "Overdue":
+      return "overdue";
     default:
       return "offline";
   }
@@ -81,13 +102,18 @@ export function ticketStatusBadgeClassName(status: string): string | undefined {
 export function fleetStatusToVariant(status: string): MatrixStatusVariant {
   switch (status) {
     case "Online":
-      return "completed";
+    case "Healthy":
+      return "healthy";
     case "PM Due":
+    case "Warning":
       return "warning";
     case "Attention":
-      return "error";
+    case "Critical":
+      return "critical";
     case "In Service":
-      return "active";
+      return "in-progress";
+    case "Overdue":
+      return "overdue";
     default:
       return "offline";
   }
@@ -97,13 +123,13 @@ export function fleetStatusBadgeClassName(status: string): string | undefined {
   if (status === "In Service") {
     return "bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30";
   }
-  if (status === "Online") {
+  if (status === "Online" || status === "Healthy") {
     return "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30";
   }
-  if (status === "PM Due") {
+  if (status === "PM Due" || status === "Warning") {
     return "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30";
   }
-  if (status === "Attention") {
+  if (status === "Attention" || status === "Critical" || status === "Overdue") {
     return "bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30";
   }
   return undefined;
@@ -112,9 +138,9 @@ export function fleetStatusBadgeClassName(status: string): string | undefined {
 export function customerStatusToVariant(status: string): MatrixStatusVariant {
   switch (status) {
     case "Active":
-      return "completed";
+      return "healthy";
     case "Pending":
-      return "warning";
+      return "waiting";
     case "Inactive":
       return "offline";
     default:
@@ -140,13 +166,13 @@ export function customerStatusBadgeClassName(
 export function inventoryStatusToVariant(status: string): MatrixStatusVariant {
   switch (status) {
     case "In Stock":
-      return "completed";
+      return "healthy";
     case "Low Stock":
       return "warning";
     case "On Order":
-      return "active";
+      return "open";
     case "Critical":
-      return "error";
+      return "critical";
     default:
       return "offline";
   }

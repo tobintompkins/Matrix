@@ -1,0 +1,11 @@
+var R=require("../../../../../../chunks/[turbopack]_runtime.js")("server/app/api/matrix-assist/sessions/[id]/draft-notes/route.js")
+R.c("server/chunks/lib_matrix-assist_1s_3k08._.js")
+R.c("server/chunks/node_modules_next_dist_1_lpwll._.js")
+R.c("server/chunks/[root-of-the-server]__0gm_9jo._.js")
+R.c("server/chunks/[root-of-the-server]__1r01cl_._.js")
+R.c("server/chunks/[root-of-the-server]__202_lon._.js")
+R.c("server/chunks/node_modules_0t5_ff-._.js")
+R.c("server/chunks/lib_auth_permissions_ts_1qwthzt._.js")
+R.c("server/chunks/1oeh_server_app_api_matrix-assist_sessions_[id]_draft-notes_route_actions_124p3br.js")
+R.m(378033)
+module.exports=R.m(378033).exports

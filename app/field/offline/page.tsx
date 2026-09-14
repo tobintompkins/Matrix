@@ -1,6 +1,7 @@
 "use client";
+import { useFieldIdentity } from "@/app/field/FieldIdentityProvider";
 
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import FieldShell from "../FieldShell";
 import {
   applyConflictResolution,
@@ -14,28 +15,29 @@ import {
 } from "@/lib/field";
 
 export default function FieldOfflineQueuePage() {
+  const { technicianName: TECH, userId: TECH_ID, role } = useFieldIdentity();
   const [ops, setOps] = useState<OfflineOperation[]>([]);
   const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
   const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState<OfflineOperation | null>(null);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const [nextOps, nextConflicts] = await Promise.all([
-      listOperations(),
+      listOperations({ userId: TECH_ID }),
       listConflicts(),
     ]);
     startTransition(() => {
       setOps(nextOps);
-      setConflicts(nextConflicts);
+      setConflicts(nextConflicts.filter(conflict => nextOps.some(op => op.operationId === conflict.operationId)));
     });
-  }
+  }, [TECH_ID]);
 
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [refresh]);
 
   async function retryAll() {
-    const attempt = await synchronizeQueue();
+    const attempt = await synchronizeQueue({ userId: TECH_ID });
     setNotice(
       `Sync ${attempt.status}: ${attempt.succeeded} succeeded, ${attempt.failed} failed, ${attempt.conflicts} conflicts`,
     );
@@ -103,8 +105,8 @@ export default function FieldOfflineQueuePage() {
                           void applyConflictResolution({
                             conflict: c,
                             resolution: r,
-                            resolvedBy: "Toby Tompkins",
-                            role: "SERVICE_MANAGER",
+                            resolvedBy: TECH,
+                            role,
                           }).then(async (res) => {
                             setNotice(
                               res.ok ? `Resolved with ${r}` : res.error ?? "Failed",

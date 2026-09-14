@@ -19,6 +19,11 @@ import {
   rangeToDays,
 } from "./date-range";
 import { computeExecutiveFleetHealth } from "./fleet-health";
+import { getTechnicianProductivityAnalytics } from "./technician-productivity";
+import { computeCustomerReliabilityScore } from "./customer-reliability";
+import { getPartsConsumptionAnalytics } from "./parts-consumption";
+import { getOrgHealthBridge } from "./org-health-bridge";
+import { isEnterpriseIntelligence51c1Enabled } from "./feature-flag";
 import type {
   AiInsightSummary,
   CustomerHealthRow,
@@ -165,30 +170,20 @@ export async function getExecutiveAnalytics(input?: {
   );
 
   const technicians = listTechnicians();
-  const techRows: TechnicianMetricRow[] = technicians.map((t) => {
-    const assigned = openCalls.filter(
-      (c) =>
-        c.assignment.technician?.trim().toLowerCase() === t.name.toLowerCase(),
-    );
-    const critical = assigned.filter(
-      (c) =>
-        c.priority === "CRITICAL" ||
-        c.priority === "EMERGENCY" ||
-        c.problem.machineCurrentlyDown,
-    );
-    return {
-      name: t.name,
-      status: t.status,
-      openCalls: assigned.length,
-      criticalCalls: critical.length,
-      workloadHours: t.estimatedWorkloadHours,
-      territory: t.territory,
-      href: "/dispatch",
-    };
-  });
-  techRows.sort(
-    (a, b) => b.criticalCalls - a.criticalCalls || b.openCalls - a.openCalls,
-  );
+  const techProductivity = getTechnicianProductivityAnalytics({ days });
+  const techRows: TechnicianMetricRow[] = techProductivity.rows.map((r) => ({
+    name: r.name,
+    status: r.status,
+    openCalls: r.openCalls,
+    criticalCalls: r.criticalCalls,
+    closedInRange: r.closedInRange,
+    completionRate: r.completionRate,
+    workloadHours: r.workloadHours,
+    capacityHours: r.capacityHours,
+    workloadVsCapacityPct: r.workloadVsCapacityPct,
+    territory: r.territory,
+    href: r.href,
+  }));
 
   const customers = listCustomers(1, 200).items;
   const riskByMachineCustomer = new Map<string, number>();
@@ -198,6 +193,31 @@ export async function getExecutiveAnalytics(input?: {
     );
     const key = (pm?.customerName || "Unknown").toLowerCase();
     riskByMachineCustomer.set(key, (riskByMachineCustomer.get(key) ?? 0) + 1);
+  }
+
+  const repeatByCustomer = new Map<string, number>();
+  const ninetyMs = Date.now() - 90 * 86_400_000;
+  const recentByCustomerMachine = new Map<string, Set<string>>();
+  for (const c of calls) {
+    if (new Date(c.createdAt).getTime() < ninetyMs) continue;
+    const cust = (c.machine.customerName || "Unknown").toLowerCase();
+    const mid = (c.machine.machineId || c.id).toLowerCase();
+    const set = recentByCustomerMachine.get(cust) ?? new Set();
+    set.add(mid);
+    recentByCustomerMachine.set(cust, set);
+  }
+  for (const [cust, machines] of recentByCustomerMachine) {
+    let repeats = 0;
+    for (const mid of machines) {
+      const count = calls.filter(
+        (c) =>
+          (c.machine.customerName || "").toLowerCase() === cust &&
+          (c.machine.machineId || "").toLowerCase() === mid &&
+          new Date(c.createdAt).getTime() >= ninetyMs,
+      ).length;
+      if (count >= 3) repeats += 1;
+    }
+    repeatByCustomer.set(cust, repeats);
   }
 
   const customerRows: CustomerHealthRow[] = customers.map((c) => {
@@ -214,25 +234,28 @@ export async function getExecutiveAnalytics(input?: {
         call.problem.machineCurrentlyDown,
     );
     const machinesAtRisk = riskByMachineCustomer.get(name.toLowerCase()) ?? 0;
-    let riskLabel: CustomerHealthRow["riskLabel"] = "Healthy";
-    if (crit.length > 0 || machinesAtRisk >= 2) riskLabel = "Critical";
-    else if (machinesAtRisk > 0 || related.length >= 3) riskLabel = "At Risk";
-    else if (related.length > 0) riskLabel = "Watch";
+    const scored = computeCustomerReliabilityScore({
+      openCalls: related.length,
+      criticalCalls: crit.length,
+      machinesAtRisk,
+      repeatCallSites: repeatByCustomer.get(name.toLowerCase()) ?? 0,
+    });
     return {
       customerId: c.id,
       name,
       openCalls: related.length,
       criticalCalls: crit.length,
       machinesAtRisk,
-      riskLabel,
+      reliabilityScore: scored.reliabilityScore,
+      riskLabel: scored.riskLabel,
       href: `/customers/${encodeURIComponent(c.id)}`,
     };
   });
   customerRows.sort(
     (a, b) =>
+      a.reliabilityScore - b.reliabilityScore ||
       b.criticalCalls - a.criticalCalls ||
-      b.machinesAtRisk - a.machinesAtRisk ||
-      b.openCalls - a.openCalls,
+      b.machinesAtRisk - a.machinesAtRisk,
   );
 
   const dueSoon14d = [...latestHealth.values()].filter((s) => {
@@ -242,12 +265,35 @@ export async function getExecutiveAnalytics(input?: {
     return daysLeft >= 0 && daysLeft <= 14;
   }).length;
 
+  const trendBucket = emptyDayMap(start, days);
+  const predictiveTrend = new Map<
+    string,
+    { highRisk: number; criticalRisk: number; evaluated: number }
+  >();
+  for (const key of trendBucket.keys()) {
+    predictiveTrend.set(key, { highRisk: 0, criticalRisk: 0, evaluated: 0 });
+  }
+  for (const s of healthSnapshots) {
+    const key = dayKey(s.generatedAt);
+    const bucket = predictiveTrend.get(key);
+    if (!bucket) continue;
+    bucket.evaluated += 1;
+    if (s.riskLevel === "HIGH") bucket.highRisk += 1;
+    if (s.riskLevel === "CRITICAL") bucket.criticalRisk += 1;
+  }
+
   const predictive: PredictiveAnalytics = {
     machinesEvaluated: latestHealth.size,
     highRisk: atRisk.filter((s) => s.riskLevel === "HIGH").length,
     criticalRisk: atRisk.filter((s) => s.riskLevel === "CRITICAL").length,
     openAlerts: predictiveAlerts.length,
     dueSoon14d,
+    trendSeries: [...predictiveTrend.entries()].map(([date, v]) => ({
+      date,
+      highRisk: v.highRisk,
+      criticalRisk: v.criticalRisk,
+      evaluated: v.evaluated,
+    })),
     topRiskMachines: atRisk
       .slice()
       .sort((a, b) => a.healthScore - b.healthScore)
@@ -259,6 +305,17 @@ export async function getExecutiveAnalytics(input?: {
         reason: s.primaryRiskReason,
         href: `/ai-operations/predictive-maintenance/machines/${encodeURIComponent(s.machineId)}`,
       })),
+  };
+
+  const partsRaw = getPartsConsumptionAnalytics({ days });
+  const partsConsumption = {
+    totalConsumed: partsRaw.totalConsumed,
+    distinctParts: partsRaw.distinctParts,
+    issueEvents: partsRaw.issueEvents,
+    empty: partsRaw.empty,
+    emptyMessage: partsRaw.emptyMessage,
+    topParts: partsRaw.topParts.slice(0, 10),
+    href: partsRaw.href,
   };
 
   const activeInsights = insights.filter(
@@ -388,8 +445,8 @@ export async function getExecutiveAnalytics(input?: {
     },
     {
       key: "customers",
-      title: "Customer health",
-      summary: `${customerRows.filter((c) => c.riskLabel === "Critical" || c.riskLabel === "At Risk").length} customers need attention.`,
+      title: "Customer reliability",
+      summary: `${customerRows.filter((c) => c.riskLabel === "Critical" || c.riskLabel === "At Risk").length} customers need attention (reliability scored from open/critical/predictive pressure).`,
       metrics: [
         { label: "Customers scored", value: String(customerRows.length) },
         {
@@ -401,9 +458,63 @@ export async function getExecutiveAnalytics(input?: {
           ),
         },
       ],
-      href: "/customers",
+      href: "/executive-command-center/customers",
+    },
+    {
+      key: "partsConsumption",
+      title: "Parts consumption",
+      summary: partsConsumption.empty
+        ? partsConsumption.emptyMessage ?? "No consumption in range."
+        : `${partsConsumption.totalConsumed} units consumed across ${partsConsumption.distinctParts} parts (${partsConsumption.issueEvents} CONSUME events).`,
+      metrics: [
+        { label: "Units consumed", value: String(partsConsumption.totalConsumed) },
+        { label: "Distinct parts", value: String(partsConsumption.distinctParts) },
+      ],
+      href: "/inventory",
+    },
+    {
+      key: "technicianProductivity",
+      title: "Technician productivity",
+      summary: `${techRows.length} technicians; closed-in-range completions derived from service-call history.`,
+      metrics: [
+        {
+          label: "Closed in range",
+          value: String(techRows.reduce((s, t) => s + t.closedInRange, 0)),
+        },
+        {
+          label: "Open assigned",
+          value: String(techRows.reduce((s, t) => s + t.openCalls, 0)),
+        },
+      ],
+      href: "/executive-command-center/technicians",
     },
   ];
+
+  if (isEnterpriseIntelligence51c1Enabled()) {
+    const orgBridge = await getOrgHealthBridge(organizationId);
+    reports.push({
+      key: "organizationHealth",
+      title: "Organization health",
+      summary: orgBridge.enabled
+        ? `Overall ${orgBridge.overallScore ?? "n/a"} (${orgBridge.classification}); ${orgBridge.availableCategories} categories available.`
+        : orgBridge.message ?? "Organization Health unavailable.",
+      metrics: orgBridge.kpis.map((k) => ({
+        label: k.label,
+        value: k.value,
+      })),
+      href: orgBridge.href,
+    });
+  }
+
+  try {
+    const { buildPredictiveBusinessReportSections } = await import(
+      "./predictive-business/predictive-reports"
+    );
+    const pbaSections = await buildPredictiveBusinessReportSections();
+    reports.push(...pbaSections);
+  } catch {
+    /* optional */
+  }
 
   const signals = [
     openCalls.length > 0 || callsInRange.length > 0,
@@ -417,6 +528,10 @@ export async function getExecutiveAnalytics(input?: {
     (signals.filter(Boolean).length / signals.length) * 100,
   );
   const empty = signals.every((s) => !s);
+
+  const orgHealthScore = isEnterpriseIntelligence51c1Enabled()
+    ? (await getOrgHealthBridge(organizationId)).overallScore
+    : null;
 
   return {
     generatedAt,
@@ -450,6 +565,7 @@ export async function getExecutiveAnalytics(input?: {
         ).length,
         fleetHealthScore: fleetHealth.score,
         openDecisions: openDecisionsCount,
+        organizationHealthScore: orgHealthScore,
       },
       series,
       seriesEmpty,
@@ -457,6 +573,7 @@ export async function getExecutiveAnalytics(input?: {
     technicians: techRows,
     customers: customerRows.slice(0, 40),
     predictive,
+    partsConsumption,
     aiInsights,
     reports,
     drilldowns: [
@@ -468,21 +585,27 @@ export async function getExecutiveAnalytics(input?: {
       },
       {
         key: "technicians",
-        label: "Technician metrics",
+        label: "Technician productivity",
         href: "/executive-command-center/technicians",
         count: techRows.length,
       },
       {
         key: "customers",
-        label: "Customer health",
+        label: "Customer reliability",
         href: "/executive-command-center/customers",
         count: customerRows.length,
       },
       {
+        key: "parts",
+        label: "Parts consumption",
+        href: "/inventory",
+        count: partsConsumption.distinctParts,
+      },
+      {
         key: "predictive",
-        label: "Predictive analytics",
+        label: "Predictive",
         href: "/executive-command-center/predictive",
-        count: atRisk.length,
+        count: predictive.machinesEvaluated,
       },
       {
         key: "insights",
@@ -493,7 +616,7 @@ export async function getExecutiveAnalytics(input?: {
       {
         key: "reports",
         label: "Executive reports",
-        href: "/executive-command-center/reports",
+        href: "/executive-command-center/report-center",
         count: reports.length,
       },
     ],
@@ -513,11 +636,15 @@ export function analyticsToCsv(payload: ExecutiveAnalyticsPayload): string {
     ),
     ...payload.technicians.map(
       (t) =>
-        `technician,${JSON.stringify(t.name)},${t.openCalls} open / ${t.criticalCalls} critical`,
+        `technician,${JSON.stringify(t.name)},${t.openCalls} open / ${t.closedInRange} closed / ${t.criticalCalls} critical`,
     ),
     ...payload.customers.map(
       (c) =>
-        `customer,${JSON.stringify(c.name)},${c.riskLabel} (${c.openCalls} open)`,
+        `customer,${JSON.stringify(c.name)},score ${c.reliabilityScore} ${c.riskLabel} (${c.openCalls} open)`,
+    ),
+    ...payload.partsConsumption.topParts.map(
+      (p) =>
+        `parts,${JSON.stringify(p.partNumber)},${p.quantityConsumed} consumed`,
     ),
   ];
   return lines.join("\n");

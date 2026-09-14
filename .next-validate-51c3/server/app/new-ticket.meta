@@ -1,0 +1,17 @@
+{
+  "status": 307,
+  "headers": {
+    "location": "/service-calls/new",
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/new-ticket/layout,_N_T_/new-ticket/page,_N_T_/new-ticket"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/new-ticket/__PAGE__",
+    "/new-ticket",
+    "/_index",
+    "/_head"
+  ]
+}

@@ -1,0 +1,12 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/data-quality/fixes/preview/route.js")
+R.c("server/chunks/[root-of-the-server]__1u4ule2._.js")
+R.c("server/chunks/[root-of-the-server]__0i0wtlu._.js")
+R.c("server/chunks/lib_auth_permissions_ts_1qwthzt._.js")
+R.c("server/chunks/node_modules_next_dist_1_lpwll._.js")
+R.c("server/chunks/node_modules_0t5_ff-._.js")
+R.c("server/chunks/[root-of-the-server]__202_lon._.js")
+R.c("server/chunks/lib_crm_repository_ts_1qe6se3._.js")
+R.c("server/chunks/[root-of-the-server]__1r01cl_._.js")
+R.c("server/chunks/_next-internal_server_app_api_data-quality_fixes_preview_route_actions_06b9y5b.js")
+R.m(3039)
+module.exports=R.m(3039).exports

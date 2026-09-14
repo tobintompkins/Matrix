@@ -1,0 +1,11 @@
+var R=require("../../../../../../chunks/[turbopack]_runtime.js")("server/app/api/organization-health/alerts/[id]/dismiss/route.js")
+R.c("server/chunks/[root-of-the-server]__0i0wtlu._.js")
+R.c("server/chunks/[root-of-the-server]__1r01cl_._.js")
+R.c("server/chunks/lib_auth_permissions_ts_1qwthzt._.js")
+R.c("server/chunks/node_modules_0t5_ff-._.js")
+R.c("server/chunks/[root-of-the-server]__202_lon._.js")
+R.c("server/chunks/node_modules_next_dist_1_lpwll._.js")
+R.c("server/chunks/[root-of-the-server]__09qgww-._.js")
+R.c("server/chunks/1oeh_server_app_api_organization-health_alerts_[id]_dismiss_route_actions_0_p75a5.js")
+R.m(280184)
+module.exports=R.m(280184).exports

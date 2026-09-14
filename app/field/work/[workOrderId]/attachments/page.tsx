@@ -1,4 +1,5 @@
 "use client";
+import { useFieldIdentity } from "@/app/field/FieldIdentityProvider";
 
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -10,8 +11,6 @@ import {
   type AttachmentCategory,
 } from "@/lib/field";
 
-const TECH = "Toby Tompkins";
-const TECH_ID = "tech-toby";
 
 const CATEGORIES: AttachmentCategory[] = [
   "BEFORE_REPAIR",
@@ -26,6 +25,7 @@ const CATEGORIES: AttachmentCategory[] = [
 ];
 
 export default function FieldAttachmentsPage() {
+  const { technicianName: TECH, userId: TECH_ID } = useFieldIdentity();
   const params = useParams();
   const workOrderId = String(params.workOrderId ?? "");
   const [category, setCategory] = useState<AttachmentCategory>("BEFORE_REPAIR");

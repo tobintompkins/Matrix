@@ -35,6 +35,37 @@ export type ExecutiveBriefingBundle = {
     items?: Array<{ label: string; value: string; href?: string }>;
   }>;
   risks: Array<{ title: string; detail: string; href?: string }>;
+  /** Patch 51C.3 — structured daily fields when Copilot enabled + DAILY period. */
+  dailyExecutive?: {
+    todaysPriorities: string[];
+    machineDownSummary: string;
+    criticalCustomers: string[];
+    pmCompliance: string;
+    inventoryShortages: string;
+    upcomingPmWorkload: string;
+    openServiceCalls: string;
+    highCostRepairs: string[];
+    recommendedActions: Array<{
+      title: string;
+      rationale: string;
+      priority: string;
+      executable: false;
+      href?: string;
+    }>;
+    confidence: number;
+    assumptions: string[];
+  } | null;
+  /** Patch 51C.3 — weekly narrative when Copilot enabled + WEEKLY period. */
+  weeklyExecutive?: {
+    serviceMetrics: string[];
+    pmMetrics: string[];
+    inventoryMetrics: string[];
+    customerTrends: string[];
+    aiRecommendations: string[];
+    operationalRisks: string[];
+    confidence: number;
+    href: string;
+  } | null;
 };
 
 function inWindow(iso: string, start: Date, end: Date) {
@@ -263,6 +294,61 @@ export async function buildExecutiveBriefingCenter(input?: {
       : []),
   ];
 
+  let dailyExecutive: ExecutiveBriefingBundle["dailyExecutive"] = null;
+  let weeklyExecutive: ExecutiveBriefingBundle["weeklyExecutive"] = null;
+  try {
+    const { isExecutiveAiCopilot51c3Enabled } = await import("./feature-flag");
+    if (isExecutiveAiCopilot51c3Enabled()) {
+      if (period === "DAILY") {
+        const { buildDailyExecutiveBriefing } = await import(
+          "./executive-copilot/daily-briefing"
+        );
+        const d = await buildDailyExecutiveBriefing({
+          organizationId: input?.organizationId,
+        });
+        dailyExecutive = {
+          todaysPriorities: d.todaysPriorities,
+          machineDownSummary: d.machineDownSummary,
+          criticalCustomers: d.criticalCustomers,
+          pmCompliance: d.pmCompliance,
+          inventoryShortages: d.inventoryShortages,
+          upcomingPmWorkload: d.upcomingPmWorkload,
+          openServiceCalls: d.openServiceCalls,
+          highCostRepairs: d.highCostRepairs,
+          recommendedActions: d.recommendedActions.map((r) => ({
+            title: r.title,
+            rationale: r.rationale,
+            priority: r.priority,
+            executable: false as const,
+            href: r.href,
+          })),
+          confidence: d.confidence,
+          assumptions: d.assumptions,
+        };
+      }
+      if (period === "WEEKLY") {
+        const { buildWeeklyExecutiveReport } = await import(
+          "./executive-copilot/weekly-report"
+        );
+        const w = await buildWeeklyExecutiveReport({
+          organizationId: input?.organizationId,
+        });
+        weeklyExecutive = {
+          serviceMetrics: w.serviceMetrics,
+          pmMetrics: w.pmMetrics,
+          inventoryMetrics: w.inventoryMetrics,
+          customerTrends: w.customerTrends,
+          aiRecommendations: w.aiRecommendations,
+          operationalRisks: w.operationalRisks,
+          confidence: w.confidence,
+          href: w.href,
+        };
+      }
+    }
+  } catch {
+    /* copilot optional */
+  }
+
   return {
     period,
     periodLabel: windows.label,
@@ -280,5 +366,7 @@ export async function buildExecutiveBriefingCenter(input?: {
     keyChanges,
     sections,
     risks,
+    dailyExecutive,
+    weeklyExecutive,
   };
 }
