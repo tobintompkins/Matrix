@@ -65,9 +65,12 @@ export async function requireMatrixAuth(): Promise<
       typeof publicMetadata.technicianId === "string"
         ? publicMetadata.technicianId
         : undefined,
+    technicianName:
+      typeof publicMetadata.technicianName === "string"
+        ? publicMetadata.technicianName
+        : undefined,
+    usingDevFallbackRole,
   };
-
-  void usingDevFallbackRole;
 
   return { ok: true, userId: session.userId, profile };
 }

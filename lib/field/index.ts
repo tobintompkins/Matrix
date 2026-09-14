@@ -13,6 +13,8 @@ export {
   newEntityId,
   newOperationId,
   resetOfflineStoreForTests,
+  revokeOfflineStoreForUser,
+  retireLegacyOfflineStore,
   setOfflineStoreScope,
   useMemoryOfflineStoreForTests,
 } from "./store";

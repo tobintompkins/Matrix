@@ -12,6 +12,7 @@ import {
   loadFieldStorageStats,
   markFullRefresh,
   removeCompletedSyncedPackages,
+  retireLegacyOfflineStore,
   type FieldStorageStats,
 } from "@/lib/field";
 
@@ -111,8 +112,6 @@ export default function FieldSettingsPage() {
               await refresh();
             })
           }
-          disabled
-          title="Shared-device cleanup is paused until per-user storage isolation is implemented."
         >
           Clear Successfully Synchronized Attachments
         </button>
@@ -136,15 +135,28 @@ export default function FieldSettingsPage() {
               await refresh();
             })();
           }}
-          disabled
-          title="Shared-device cleanup is paused until per-user storage isolation is implemented."
         >
           Clear All Offline Data
+        </button>
+        <button
+          type="button"
+          className="min-h-12 rounded-xl border border-rose-700 font-semibold text-rose-300"
+          onClick={() => {
+            if (!window.confirm("Remove the old shared Field offline data from this device? It cannot be assigned safely to any user and cannot be restored.")) return;
+            void retireLegacyOfflineStore().then(async () => {
+              setNotice("Old shared Field data removed from this device.");
+              await refresh();
+            }).catch((error: unknown) => {
+              setNotice(error instanceof Error ? error.message : "Could not remove old shared Field data.");
+            });
+          }}
+        >
+          Remove Old Shared Field Data
         </button>
       </div>
 
       <p className="mt-6 text-xs text-slate-500">
-        Device-wide cleanup is paused while per-user storage isolation is being completed. Existing offline data has not been deleted or reassigned.
+        Cleanup only affects your signed-in Field data. Old shared Field data is never assigned to a user; remove it only after confirming it is no longer needed.
       </p>
     </FieldShell>
   );

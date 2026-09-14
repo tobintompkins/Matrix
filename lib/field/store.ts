@@ -110,6 +110,58 @@ export function clearOfflineStoreScope(): void {
   activeScope = null;
 }
 
+function deleteBrowserDatabase(name: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(name);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error ?? new Error("IndexedDB delete failed"));
+    request.onblocked = () => reject(new Error("Close other Matrix tabs and try again."));
+  });
+}
+
+/**
+ * The v1 store was shared by every user and has no trustworthy owner record.
+ * It must be retired explicitly, never copied into a signed-in user's cache.
+ */
+export async function retireLegacyOfflineStore(): Promise<void> {
+  const legacyKey = scopeKey(null);
+  const existing = browserStores.get(legacyKey);
+  if (existing instanceof IndexedDbOfflineStore) await existing.close();
+  browserStores.delete(legacyKey);
+  memoryStores.delete(legacyKey);
+
+  if (typeof indexedDB !== "undefined") {
+    await deleteBrowserDatabase(LEGACY_DB_NAME);
+  }
+}
+
+/**
+ * Clear the signed-in user's Field data before sign-out. This protects a
+ * shared device from exposing cached packages, photos, and queued actions.
+ */
+export async function revokeOfflineStoreForUser(userId: string): Promise<void> {
+  const normalizedUserId = userId.trim();
+  if (!normalizedUserId) return;
+  const key = scopeKey(normalizedUserId);
+
+  if (testStore) {
+    await testStore.clearAll();
+  } else if (typeof indexedDB !== "undefined") {
+    const existing = browserStores.get(key);
+    if (existing instanceof IndexedDbOfflineStore) {
+      await existing.clearAll();
+      await existing.close();
+    }
+    browserStores.delete(key);
+  } else {
+    const existing = memoryStores.get(key);
+    if (existing) await existing.clearAll();
+    memoryStores.delete(key);
+  }
+
+  if (activeScope === normalizedUserId) clearOfflineStoreScope();
+}
+
 function openDb(name: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(name, DB_VERSION);
@@ -191,6 +243,12 @@ export class IndexedDbOfflineStore implements OfflineStore {
       total += JSON.stringify(rows).length;
     }
     return total;
+  }
+
+  async close(): Promise<void> {
+    if (!this.dbPromise) return;
+    const db = await this.dbPromise;
+    db.close();
   }
 }
 

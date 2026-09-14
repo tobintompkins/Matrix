@@ -10,6 +10,7 @@ import {
 import { useEffect, useId, useRef, useState } from "react";
 import { resolveMatrixRole } from "@/lib/auth/permissions";
 import type { MatrixRole } from "@/lib/auth/types";
+import { revokeOfflineStoreForUser } from "@/lib/field/store";
 import MatrixNotificationBell from "./MatrixNotificationBell";
 import {
   IconSettings,
@@ -34,6 +35,8 @@ export default function MatrixAuthControls() {
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
 
   const { role } = resolveMatrixRole(
     user?.publicMetadata as Record<string, unknown> | undefined,
@@ -88,6 +91,19 @@ export default function MatrixAuthControls() {
     user?.primaryEmailAddress?.emailAddress?.[0] ||
     "M";
 
+  async function handleSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    setSignOutError("");
+    try {
+      if (user?.id) await revokeOfflineStoreForUser(user.id);
+      await signOut({ redirectUrl: "/sign-in" });
+    } catch {
+      setSignOutError("Could not clear offline Field data. Please try signing out again.");
+      setSigningOut(false);
+    }
+  }
+
   return (
     <div className="flex items-center gap-2">
       <MatrixNotificationBell />
@@ -127,6 +143,11 @@ export default function MatrixAuthControls() {
               <p className="mt-0.5 text-xs text-slate-400">{formatRole(role)}</p>
             </div>
             <div className="p-1.5">
+              {signOutError && (
+                <p className="mx-2 mb-2 rounded-md bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200" role="alert">
+                  {signOutError}
+                </p>
+              )}
               <button
                 type="button"
                 role="menuitem"
@@ -151,14 +172,15 @@ export default function MatrixAuthControls() {
               <button
                 type="button"
                 role="menuitem"
+                disabled={signingOut}
                 className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-rose-300/90 transition hover:bg-rose-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
                 onClick={() => {
                   setOpen(false);
-                  void signOut({ redirectUrl: "/sign-in" });
+                  void handleSignOut();
                 }}
               >
                 <IconSignOut className="h-4 w-4" />
-                Sign out
+                {signingOut ? "Clearing Field data…" : "Sign out"}
               </button>
             </div>
           </div>

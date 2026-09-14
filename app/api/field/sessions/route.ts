@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
-import {
-  SESSION_ACTIONS_REQUIRING_REASON,
-  type WorkSessionAction,
-} from "@/lib/field/types";
+import { requireMatrixPermission } from "@/lib/auth/server";
+import { canAccessFieldWorkOrder, hasConfiguredFieldApiIdentity } from "@/lib/field/api-authorization";
+import { SESSION_ACTIONS_REQUIRING_REASON, type WorkSessionAction } from "@/lib/field/types";
+import { getWorkOrder } from "@/lib/work-orders/repository";
 
 /** Work-session action validation endpoint (server authority). */
 export async function POST(request: Request) {
+  const authResult = await requireMatrixPermission("SYNC_FIELD_QUEUE");
+  if (!authResult.ok) return authResult.response;
+  if (!hasConfiguredFieldApiIdentity(authResult.profile)) {
+    return NextResponse.json({ ok: false, error: "A configured Matrix role is required." }, { status: 403 });
+  }
   let body: {
     workOrderId?: string;
     action?: WorkSessionAction;
     reason?: string;
-    technicianId?: string;
   };
   try {
     body = await request.json();
@@ -18,11 +22,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!body.workOrderId || !body.action || !body.technicianId) {
+  if (!body.workOrderId || !body.action) {
     return NextResponse.json(
-      { ok: false, error: "workOrderId, action, and technicianId required" },
+      { ok: false, error: "workOrderId and action required" },
       { status: 400 },
     );
+  }
+  const workOrder = getWorkOrder(body.workOrderId);
+  if (!workOrder) return NextResponse.json({ ok: false, error: "Work order not found" }, { status: 404 });
+  if (!canAccessFieldWorkOrder(authResult.profile, workOrder)) {
+    return NextResponse.json({ ok: false, error: "This work order is not assigned to the signed-in technician" }, { status: 403 });
   }
 
   if (

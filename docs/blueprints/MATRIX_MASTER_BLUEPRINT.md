@@ -352,7 +352,7 @@ The Matrix landing experience is presented to users as the **Service Hub**.
 - **51B.1** — Implemented (Customer Portal ↔ Service Hub integration; shared context, typed customer status, customer Assist mode, Hub visibility markers)
 - **51C.1** — Implemented (Enterprise Intelligence aggregation on ECC; org-health bridge, parts/tech/customer analytics, Assist insights, report builder)
 - **51C.2** — Implemented (Predictive Business Analytics center on ECC; demand/PM/parts/capacity forecasts, scenarios, accuracy, data quality)
-- **51B.2** — In progress: Mobile Technician Experience (51B.2.1–51B.2.4 applied: work queue, Field access, signed-in identity, per-user offline storage). Remaining gates: handler-level authorization, legacy `matrix-field-offline-v1` / `tech-toby` migration, sign-out/offline revocation, and verify download/reopen, interrupted sync, conflicts, notes/photos/signatures, and completion on real devices. Not production-ready. No Onyx in this item.
+- **51B.2** — In progress: Mobile Technician Experience (51B.2.1–51B.2.7 applied: work queue, Field access, signed-in identity, per-user offline storage, Field API authorization, sign-out/offline revocation, and legacy shared-store retirement). Remaining gates: durable server repository and real sync persistence, technician-ID migration beyond legacy `tech-toby` seed data, and verify download/reopen, interrupted sync, conflicts, notes/photos/signatures, and completion on real devices. Not production-ready. No Onyx in this item.
 
 ---
 

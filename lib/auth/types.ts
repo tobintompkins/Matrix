@@ -380,6 +380,10 @@ export type MatrixUserProfile = {
   assignedTruckId?: string;
   assignedWarehouseId?: string;
   technicianId?: string;
+  /** Clerk publicMetadata.technicianName, matched to dispatch assignments. */
+  technicianName?: string;
+  /** True only for the local development role fallback; APIs must reject it. */
+  usingDevFallbackRole?: boolean;
 };
 
 export type MatrixAuthContext = {
