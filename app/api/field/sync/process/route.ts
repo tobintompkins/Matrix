@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireMatrixPermission } from "@/lib/auth/server";
 import { hasConfiguredFieldApiIdentity } from "@/lib/field/api-authorization";
-import { processReceivedFieldNotes } from "@/lib/field/server-sync-processor";
+import { processReceivedFieldNotes, processReceivedFieldStatuses } from "@/lib/field/server-sync-processor";
 
-/** Manager-only, deliberately limited to the safe NOTE receipt processor. */
+/** Manager-only: safe NOTE receipts and validated STATUS_CHANGE receipts. */
 export async function POST(request: Request) {
   const authResult = await requireMatrixPermission("VIEW_FIELD_ALL_TECHNICIANS");
   if (!authResult.ok) return authResult.response;
@@ -13,6 +13,8 @@ export async function POST(request: Request) {
   let body: { limit?: unknown } = {};
   try { body = await request.json(); } catch { /* empty body is valid */ }
   const requested = typeof body.limit === "number" ? body.limit : 25;
-  const result = await processReceivedFieldNotes(Math.max(1, Math.min(50, Math.floor(requested))));
-  return NextResponse.json({ ok: true, ...result });
+  const limit = Math.max(1, Math.min(50, Math.floor(requested)));
+  const notes = await processReceivedFieldNotes(limit);
+  const statuses = await processReceivedFieldStatuses(limit);
+  return NextResponse.json({ ok: true, notes, statuses });
 }

@@ -46,19 +46,23 @@ export default function FieldSyncInboxPage() {
     return <FieldShell title="Sync Inbox"><p className="rounded-xl border border-rose-700/60 bg-rose-500/10 p-4 text-sm text-rose-100">You do not have access to the server sync inbox.</p></FieldShell>;
   }
 
-  async function processNotes() {
+  async function processReceipts() {
     if (processing) return;
     setProcessing(true);
-    setNotice("Processing received Field notes…");
+    setNotice("Processing received Field notes and statuses…");
     try {
       const response = await fetch("/api/field/sync/process", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-      const body = await response.json() as { applied?: number; waiting?: number; error?: string };
-      if (!response.ok) throw new Error(body.error ?? "Could not process Field notes.");
-      const processed = `Processed ${body.applied ?? 0} note(s). ${body.waiting ?? 0} still need a server work order.`;
+      const body = await response.json() as {
+        notes?: { applied?: number; waiting?: number };
+        statuses?: { applied?: number; waiting?: number };
+        error?: string;
+      };
+      if (!response.ok) throw new Error(body.error ?? "Could not process Field receipts.");
+      const processed = `Processed ${body.notes?.applied ?? 0} note(s) and ${body.statuses?.applied ?? 0} status change(s). ${(body.notes?.waiting ?? 0) + (body.statuses?.waiting ?? 0)} still need a server work order.`;
       await load();
       startTransition(() => setNotice(processed));
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Could not process Field notes.");
+      setNotice(error instanceof Error ? error.message : "Could not process Field receipts.");
     } finally {
       setProcessing(false);
     }
@@ -68,7 +72,7 @@ export default function FieldSyncInboxPage() {
     <FieldShell title="Sync Inbox">
       <p className="mb-4 text-sm text-slate-300">Server receipts are proof that Matrix received an authorized Field change. They are waiting for the next processing step and do not yet mean a work order was updated.</p>
       <button type="button" onClick={() => { setNotice("Loading server receipts…"); void load(); }} className="mb-4 min-h-11 rounded-lg border border-slate-600 px-4 text-sm font-semibold">Refresh</button>
-      <button type="button" disabled={processing} onClick={() => void processNotes()} className="mb-4 ml-2 min-h-11 rounded-lg bg-cyan-500 px-4 text-sm font-semibold text-slate-950 disabled:opacity-50">{processing ? "Processing…" : "Process Received Notes"}</button>
+      <button type="button" disabled={processing} onClick={() => void processReceipts()} className="mb-4 ml-2 min-h-11 rounded-lg bg-cyan-500 px-4 text-sm font-semibold text-slate-950 disabled:opacity-50">{processing ? "Processing…" : "Process Received Notes & Statuses"}</button>
       {notice && <p role="status" className="mb-4 rounded-xl border border-cyan-800/50 bg-cyan-950/40 p-3 text-sm text-cyan-100">{notice}</p>}
       <ul className="space-y-3">
         {receipts.length === 0 && !notice && <li className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-400">No server receipts yet.</li>}

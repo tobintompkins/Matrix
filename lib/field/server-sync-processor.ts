@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
+import type { WorkOrderStatus } from "@/lib/work-orders/types";
+import { validateFieldStatusReceipt } from "./status-receipt-validation";
 
 /**
  * Apply the safest first receipt type: a text note. Receipts without a real
@@ -24,6 +26,60 @@ export async function processReceivedFieldNotes(limit = 25) {
     await prisma.$transaction([
       prisma.workOrder.update({ where: { id: receipt.workOrderId }, data: { [field]: updated } }),
       prisma.offlineOperation.update({ where: { id: receipt.id }, data: { status: "APPLIED", synchronizedAt: new Date(), lastError: null } }),
+    ]);
+    applied += 1;
+  }
+  return { scanned: receipts.length, applied, waiting };
+}
+
+export async function processReceivedFieldStatuses(limit = 25) {
+  const receipts = await prisma.offlineOperation.findMany({
+    where: { status: "RECEIVED", type: "STATUS_CHANGE" },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+  let applied = 0;
+  let waiting = 0;
+  for (const receipt of receipts) {
+    const payload = JSON.parse(receipt.payload ?? "{}") as { status?: unknown };
+    if (!receipt.workOrderId) {
+      await prisma.offlineOperation.update({
+        where: { id: receipt.id },
+        data: { status: "REJECTED", lastError: "A server work order is required." },
+      });
+      continue;
+    }
+    const workOrder = await prisma.workOrder.findUnique({
+      where: { id: receipt.workOrderId },
+      select: { status: true },
+    });
+    if (!workOrder) {
+      waiting += 1;
+      continue;
+    }
+    const check = validateFieldStatusReceipt(
+      (workOrder.status ?? "NEW") as WorkOrderStatus,
+      payload.status,
+    );
+    if (!check.ok) {
+      await prisma.offlineOperation.update({
+        where: { id: receipt.id },
+        data: { status: "REJECTED", lastError: check.error },
+      });
+      continue;
+    }
+    await prisma.$transaction([
+      prisma.workOrder.update({
+        where: { id: receipt.workOrderId },
+        data: {
+          status: check.status,
+          completedDate: check.status === "COMPLETED" ? new Date() : undefined,
+        },
+      }),
+      prisma.offlineOperation.update({
+        where: { id: receipt.id },
+        data: { status: "APPLIED", synchronizedAt: new Date(), lastError: null },
+      }),
     ]);
     applied += 1;
   }
