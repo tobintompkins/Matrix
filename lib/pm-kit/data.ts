@@ -1,3 +1,4 @@
+import {initialEquipment} from '../equipment/catalog';
 import type { PMPartLine, PMType, PrinterOption } from "./types";
 
 export const pmTypes: PMType[] = [
@@ -7,29 +8,7 @@ export const pmTypes: PMType[] = [
   "Registration / Alignment PM",
 ];
 
-export const printerOptions: PrinterOption[] = [
-  {
-    assetId: "MX-GD-002",
-    customer: "SFX / MPX",
-    model: "GD9630",
-    serialNumber: "GD9630-2024-00842",
-    meterCount: 1112945,
-  },
-  {
-    assetId: "MX-VA-002",
-    customer: "SFX / MPX",
-    model: "Valezus",
-    serialNumber: "VAL-2023-01567",
-    meterCount: 312480,
-  },
-  {
-    assetId: "MX-GL-001",
-    customer: "SFX / MPX",
-    model: "GL9730",
-    serialNumber: "GL9730-2024-00321",
-    meterCount: 654870,
-  },
-];
+export const printerOptions:PrinterOption[]=initialEquipment.filter(p=>!p.removed).map(p=>({assetId:p.id,customer:'SFX/MPX',model:p.model,serialNumber:p.serialNumber,meterCount:NaN}));
 
 export const pmPartCatalog: PMPartLine[] = [
   {

@@ -9,7 +9,9 @@ import {
 } from "@/lib/auth/permissions";
 import type { MatrixPermission } from "@/lib/auth/types";
 import { listCustomers } from "@/lib/crm";
-import { digitalTwinFleet } from "@/lib/digital-twin";
+import {useCatalog} from '@/lib/equipment/use-catalog';
+import {toTwin} from '@/lib/equipment/adapters';
+import type {DigitalTwinMachine} from '@/lib/digital-twin/types';
 import { getDashboardMetrics } from "@/lib/inventory";
 import { getPmDashboard } from "@/lib/pm-intelligence";
 import {
@@ -230,7 +232,7 @@ function buildPrimaryKpis(): KpiCard[] {
   ];
 }
 
-function buildSecondaryKpis(): KpiCard[] {
+function buildSecondaryKpis(digitalTwinFleet:DigitalTwinMachine[]): KpiCard[] {
   const machinesDown = digitalTwinFleet.filter(
     (m) => m.operational.status === "DOWN",
   ).length;
@@ -409,7 +411,7 @@ function buildPmDueSoon() {
     }));
 }
 
-function buildFleetAlerts() {
+function buildFleetAlerts(digitalTwinFleet:DigitalTwinMachine[]) {
   return digitalTwinFleet
     .filter(
       (m) =>
@@ -434,6 +436,8 @@ const subscribeHydration = () => () => {};
 
 /** Service Hub tasks and operational overview. */
 export default function DashboardOpsPanel() {
+  const {catalog}=useCatalog();
+  const digitalTwinFleet=useMemo(()=>catalog.equipment.filter(p=>!p.removed).map(toTwin),[catalog.equipment]);
   const { user } = useUser();
   const { role } = resolveMatrixRole(
     user?.publicMetadata as Record<string, unknown> | undefined,
@@ -462,8 +466,8 @@ export default function DashboardOpsPanel() {
 
   const secondaryKpis = useMemo(() => {
     void tick;
-    return buildSecondaryKpis();
-  }, [tick]);
+    return buildSecondaryKpis(digitalTwinFleet);
+  }, [tick,digitalTwinFleet]);
 
   const quickActions = useMemo(
     () =>
@@ -507,8 +511,8 @@ export default function DashboardOpsPanel() {
 
   const fleetAlerts = useMemo(() => {
     void tick;
-    return buildFleetAlerts();
-  }, [tick]);
+    return buildFleetAlerts(digitalTwinFleet);
+  }, [tick,digitalTwinFleet]);
 
   const callMetrics = useMemo(() => {
     void tick;

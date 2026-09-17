@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {useCatalog} from '@/lib/equipment/use-catalog';
+import type {WizardPrinter} from '@/lib/job-wizard/types';
+import { useMemo, useState } from "react";
 import WorkflowPanel from "@/app/components/WorkflowPanel";
 import { getWorkflowActions } from "@/lib/workflow/registry";
 import { buildWorkflowUrl, withFrom } from "@/lib/workflow/routes";
@@ -12,13 +14,12 @@ import {
   laborEstimates,
   pmPartsInStock,
   pmPartsNeedingOrder,
-  printerOptions,
   technicians,
 } from "@/lib/job-wizard/data";
 import type { ChecklistItem, JobType } from "@/lib/job-wizard/types";
 
 function formatNumber(value: number): string {
-  return value.toLocaleString("en-US");
+  return Number.isFinite(value)?value.toLocaleString("en-US"):"Not recorded";
 }
 
 function SectionCard({
@@ -43,11 +44,19 @@ function SectionCard({
   );
 }
 
-export default function JobWizardForm() {
+export default function JobWizardForm(){
+ const {catalog,loading,error}=useCatalog();
+ const printerOptions=catalog.equipment.filter(p=>!p.removed).map(p=>({assetId:p.id,customer:'SFX/MPX',model:p.model,serialNumber:p.serialNumber,meterCount:NaN,location:p.location}));
+ if(loading) return <p role="status">Loading printers…</p>;
+ if(error) return <p role="alert">{error}</p>;
+ if(!printerOptions.length) return <p>No active printers. <Link href="/fleet">Manage Printers</Link></p>;
+ return <JobWizardFormContent key={catalog.revision} printerOptions={printerOptions}/>;
+}
+function JobWizardFormContent({printerOptions}:{printerOptions:WizardPrinter[]}) {
   const workflowContext = useWorkflowContext();
   const [jobType, setJobType] = useState<JobType>("Preventive Maintenance");
   const [selectedAssetId, setSelectedAssetId] = useState(
-    workflowContext.assetId ?? printerOptions[0].assetId,
+    printerOptions.some(p=>p.assetId===workflowContext.assetId)?workflowContext.assetId!:printerOptions[0].assetId,
   );
   const [assignedTechnician, setAssignedTechnician] = useState(technicians[0]);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
@@ -55,7 +64,7 @@ export default function JobWizardForm() {
   );
   const [started, setStarted] = useState(false);
 
-  const printer = printerOptions.find((p) => p.assetId === selectedAssetId)!;
+  const printer = printerOptions.find((p) => p.assetId === selectedAssetId) ?? printerOptions[0];
   const isPM = jobType === "Preventive Maintenance";
 
   const workflowActions = useMemo(
@@ -70,13 +79,6 @@ export default function JobWizardForm() {
     [printer, workflowContext.ticket],
   );
 
-  useEffect(() => {
-    if (!workflowContext.assetId) return;
-    const match = printerOptions.find(
-      (p) => p.assetId === workflowContext.assetId,
-    );
-    if (match) setSelectedAssetId(match.assetId);
-  }, [workflowContext.assetId]);
 
   const checklistProgress = useMemo(() => {
     const completed = checklist.filter((item) => item.completed).length;

@@ -29,12 +29,72 @@ function cloneCalls(calls: ServiceCall[]): ServiceCall[] {
   return structuredClone(calls);
 }
 
+
+// Exact fingerprints of the eight original development calls. Never filter by ID alone.
+const demoCallFingerprints = [
+  {
+    "id": "SC-2026-0001",
+    "workOrderNumber": "WO-2026-1001",
+    "machineId": "MX-GD-002",
+    "createdAt": "2026-07-05T09:15:00.000Z"
+  },
+  {
+    "id": "SC-2026-0002",
+    "workOrderNumber": "WO-2026-1002",
+    "machineId": "MX-GD-004",
+    "createdAt": "2026-07-07T11:00:00.000Z"
+  },
+  {
+    "id": "SC-2026-0003",
+    "workOrderNumber": "WO-2026-1003",
+    "machineId": "MX-GL-001",
+    "createdAt": "2026-07-04T10:30:00.000Z"
+  },
+  {
+    "id": "SC-2026-0004",
+    "workOrderNumber": "WO-2026-1004",
+    "machineId": "MX-VA-003",
+    "createdAt": "2026-06-30T14:00:00.000Z"
+  },
+  {
+    "id": "SC-2026-0005",
+    "workOrderNumber": "WO-2026-1005",
+    "machineId": "MX-VA-002",
+    "createdAt": "2026-07-08T08:45:00.000Z"
+  },
+  {
+    "id": "SC-2026-0006",
+    "workOrderNumber": "WO-2026-0990",
+    "machineId": "MX-GD-006",
+    "createdAt": "2026-06-25T09:00:00.000Z"
+  },
+  {
+    "id": "SC-2026-0007",
+    "workOrderNumber": "WO-2026-1007",
+    "machineId": "MX-GD-001",
+    "createdAt": "2026-07-09T07:00:00.000Z"
+  },
+  {
+    "id": "SC-2026-0008",
+    "workOrderNumber": "WO-2026-1008",
+    "machineId": "MX-VA-001",
+    "createdAt": "2026-07-09T12:00:00.000Z"
+  }
+];
+function excludeDemoCalls(calls: ServiceCall[]): ServiceCall[] {
+ return calls.filter(call => !demoCallFingerprints.some(seed =>
+  call.id === seed.id && call.workOrderNumber === seed.workOrderNumber &&
+  call.machine?.machineId === seed.machineId && call.createdAt === seed.createdAt
+ ));
+}
+
 function readSessionOverlay(): ServiceCall[] | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as ServiceCall[];
+    const calls=JSON.parse(raw) as ServiceCall[];
+    return Array.isArray(calls)?excludeDemoCalls(calls):null;
   } catch {
     return null;
   }

@@ -82,6 +82,7 @@ export default function FieldHomePage() {
 
   return (
     <FieldShell title="Today">
+      <div className="grid gap-4 lg:grid-cols-2">
       <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
         <p className="text-sm text-slate-400">{metrics.dateLabel}</p>
         <h2 className="mt-1 text-2xl font-bold">{metrics.technicianName}</h2>
@@ -107,6 +108,8 @@ export default function FieldHomePage() {
         <p className="mt-3 text-xs text-slate-400">Active work first, then critical and overdue work. Opening a job does not start it.</p>
       </section>
 
+      </div>
+
       {notice && (
         <p
           className="mb-4 rounded-xl border border-cyan-800/50 bg-cyan-950/40 px-4 py-3 text-sm text-cyan-100"
@@ -116,7 +119,7 @@ export default function FieldHomePage() {
         </p>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {[
           ["Scheduled today", metrics.scheduledToday],
           ["Overdue", metrics.overdue],
@@ -166,7 +169,7 @@ export default function FieldHomePage() {
       <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
         Quick actions
       </h3>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {actions.map((a) => (
           <Link
             key={a.label}

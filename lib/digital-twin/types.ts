@@ -12,6 +12,7 @@
  */
 
 export type MachineStatus =
+  | "UNKNOWN"
   | "ONLINE"
   | "OFFLINE"
   | "DEGRADED"
@@ -20,7 +21,7 @@ export type MachineStatus =
   | "INSTALLATION"
   | "RETIRED";
 
-export type MachineHealthBand = "HEALTHY" | "WATCH" | "AT_RISK" | "CRITICAL";
+export type MachineHealthBand = "HEALTHY" | "WATCH" | "AT_RISK" | "CRITICAL" | "UNKNOWN";
 
 export type MachineNetworkState =
   | "CONNECTED"

@@ -128,7 +128,7 @@ function diagramActions(): ScannerAction[] {
   ];
 }
 
-export function lookupScanValue(raw: string): ScanLookupResult {
+export function lookupScanValue(raw: string, printers = samplePrinters): ScanLookupResult {
   const query = raw.trim();
   const normalized = normalizeScanQuery(query);
   const detectedType = detectLookupType(query);
@@ -156,7 +156,7 @@ export function lookupScanValue(raw: string): ScanLookupResult {
     };
   }
 
-  const printerByAsset = samplePrinters.find(
+  const printerByAsset = printers.find(
     (p) => normalizeScanQuery(p.assetId) === normalized,
   );
   if (printerByAsset) {
@@ -169,7 +169,7 @@ export function lookupScanValue(raw: string): ScanLookupResult {
     };
   }
 
-  const printerBySerial = samplePrinters.find(
+  const printerBySerial = printers.find(
     (p) => normalizeScanQuery(p.serialNumber) === normalized,
   );
   if (printerBySerial) {

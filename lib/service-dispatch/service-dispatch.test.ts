@@ -20,7 +20,45 @@ import {
   SEED_TECHNICIANS,
   toCustomerVisibleTicket,
 } from "./index";
-import { listServiceCalls, replaceServiceCall } from "@/lib/service-calls";
+import {
+  createServiceCall,
+  listServiceCalls,
+  replaceServiceCall,
+  type ServiceCall,
+} from "@/lib/service-calls";
+
+function ensureTestServiceCall(): ServiceCall {
+  const existing = listServiceCalls().find(
+    (c) => !["CLOSED", "CANCELLED"].includes(c.status),
+  );
+  if (existing) return existing;
+  const result = createServiceCall({
+    machineId: "yankee",
+    serviceType: "BREAK_FIX",
+    issueTitle: "Dispatch test call",
+    problemDescription: "Created for unit tests after demo seeds were removed.",
+    errorCode: "",
+    symptoms: "",
+    customerImpact: "",
+    machineCurrentlyDown: false,
+    priority: "NORMAL",
+    reportedBy: "Test",
+    reporterPhone: "",
+    reporterEmail: "",
+    technician: "Toby Tompkins",
+    serviceManager: "Test Manager",
+    organization: "SFX / MPX",
+    region: "Portland, Maine",
+    requestedServiceDate: "2026-09-17",
+    scheduledStart: "2026-09-17T14:00:00.000Z",
+    estimatedDurationHours: 1,
+    isDraft: false,
+    createdBy: "Test",
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error(result.error);
+  return result.call;
+}
 
 describe("service dispatch Patch 41", () => {
   beforeEach(() => {
@@ -38,7 +76,7 @@ describe("service dispatch Patch 41", () => {
 
   it("creates dispatch tickets with MX numbers", () => {
     const machines = listServiceCalls();
-    const machineId = machines[0]?.machine.machineId ?? "mx-gd-002";
+    const machineId = machines[0]?.machine.machineId ?? "yankee";
     const result = createDispatchTicket({
       machineId,
       serviceType: "BREAK_FIX",
@@ -230,7 +268,7 @@ describe("service dispatch Patch 41", () => {
   });
 
   it("marks waiting for parts and surfaces PM opportunity", () => {
-    const open = listServiceCalls().find((c) => !["CLOSED", "CANCELLED"].includes(c.status));
+    const open = ensureTestServiceCall();
     assert.ok(open);
     replaceServiceCall({ ...open!, status: "DIAGNOSING" });
     const r = markWaitingForParts(
@@ -245,9 +283,7 @@ describe("service dispatch Patch 41", () => {
   });
 
   it("requires signature or refusal to complete", () => {
-    const open = listServiceCalls().find(
-      (c) => !["CLOSED", "CANCELLED"].includes(c.status),
-    );
+    const open = ensureTestServiceCall();
     assert.ok(open);
     const fail = completeTicketWithSignature({
       ticketId: open!.id,

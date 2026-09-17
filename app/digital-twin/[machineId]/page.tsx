@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import MatrixShell from "../../components/MatrixShell";
 import WorkflowPageShell from "../../components/WorkflowPageShell";
 import MatrixAuthGuard from "../../components/MatrixAuthGuard";
-import { getDigitalTwinMachine } from "@/lib/digital-twin/data";
+import { readCatalog } from '@/lib/equipment/store';
+import { toTwin } from '@/lib/equipment/adapters';
+export const dynamic='force-dynamic';
 import DigitalTwinDetailPanel from "../DigitalTwinDetailPanel";
 
 type PageProps = {
@@ -11,7 +13,8 @@ type PageProps = {
 
 export default async function DigitalTwinMachinePage({ params }: PageProps) {
   const { machineId } = await params;
-  const machine = getDigitalTwinMachine(machineId);
+  const record=readCatalog().equipment.find(p=>!p.removed&&p.id===machineId.toLowerCase());
+  const machine=record?toTwin(record):undefined;
 
   if (!machine) {
     notFound();

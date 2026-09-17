@@ -16,7 +16,7 @@ export default function WorkOrderCreateForm() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [customerName, setCustomerName] = useState("SFX / MPX");
-  const [siteName, setSiteName] = useState("Chicago HQ");
+  const [siteName, setSiteName] = useState("SFX/MPX — Portland, Maine");
   const [siteAddress, setSiteAddress] = useState("");
   const [serviceType, setServiceType] =
     useState<WorkOrderServiceType>("BREAK_FIX");

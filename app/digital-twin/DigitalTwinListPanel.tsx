@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import {useCatalog} from '@/lib/equipment/use-catalog';
+import {toTwin} from '@/lib/equipment/adapters';
 import { useMemo, useState } from "react";
 import {
   MatrixButton,
@@ -12,7 +14,6 @@ import {
   type MatrixStatusVariant,
 } from "@/app/components/ui";
 import {
-  digitalTwinFleet,
   digitalTwinModels,
   digitalTwinOrganizations,
   digitalTwinTechnicians,
@@ -71,6 +72,7 @@ function statusVariant(status: MachineStatus): MatrixStatusVariant {
 }
 
 function healthClass(band: MachineHealthBand): string {
+  if(band === "UNKNOWN") return "text-slate-400";
   switch (band) {
     case "HEALTHY":
       return "text-emerald-400";
@@ -84,10 +86,12 @@ function healthClass(band: MachineHealthBand): string {
 }
 
 function formatMeter(n: number): string {
-  return n.toLocaleString("en-US");
+  return Number.isFinite(n)?n.toLocaleString("en-US"):"Not recorded";
 }
 
 export default function DigitalTwinListPanel() {
+  const {catalog,loading,error}=useCatalog();
+  const digitalTwinFleet=useMemo(()=>catalog.equipment.filter(p=>!p.removed).map(toTwin),[catalog.equipment]);
   const [search, setSearch] = useState("");
   const [model, setModel] = useState<string>("All");
   const [status, setStatus] = useState<MachineStatus | "All">("All");
@@ -165,7 +169,7 @@ export default function DigitalTwinListPanel() {
     });
 
     return rows;
-  }, [search, model, status, org, technician, maintenanceFilter, sortKey]);
+  }, [digitalTwinFleet, search, model, status, org, technician, maintenanceFilter, sortKey]);
 
   const stats = useMemo(() => {
     const all = digitalTwinFleet;
@@ -179,10 +183,13 @@ export default function DigitalTwinListPanel() {
       ).length,
       openCalls: all.reduce((sum, m) => sum + m.service.openServiceCalls, 0),
     };
-  }, []);
+  }, [digitalTwinFleet]);
 
   return (
     <div className="space-y-6">
+      <Link href="/fleet" className="text-cyan-300 underline">Manage Printers</Link>
+      {loading && <p role="status">Loading printers…</p>}
+      {error && <p role="alert">{error}</p>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MatrixStatCard label="Fleet Machines" value={stats.total} />
         <MatrixStatCard
@@ -362,7 +369,7 @@ export default function DigitalTwinListPanel() {
                     <td
                       className={`px-4 py-3 font-semibold ${healthClass(m.health.band)}`}
                     >
-                      {m.health.score} · {m.health.band}
+                      {Number.isFinite(m.health.score)?m.health.score:"Not verified"} · {m.health.band}
                     </td>
                     <td className="px-4 py-3">
                       {formatMeter(m.operational.currentMeterCount)}
@@ -423,7 +430,7 @@ function MachineCard({ machine: m }: { machine: DigitalTwinMachine }) {
         <div>
           <dt className="text-xs text-slate-500">Health</dt>
           <dd className={`font-semibold ${healthClass(m.health.band)}`}>
-            {m.health.score} · {m.health.band}
+            {Number.isFinite(m.health.score)?m.health.score:"Not verified"} · {m.health.band}
           </dd>
         </div>
         <div>

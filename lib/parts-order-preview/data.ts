@@ -6,15 +6,15 @@ export const SAMPLE_PARTS_ORDER_PREVIEW: PartsOrderPreview = {
   poNumber: "PO-2026-0847",
   customerServiceCall: "SFX / MPX — TCK-1001",
   shipToAddress:
-    "SFX Chicago Production Floor\n1200 Industrial Parkway\nChicago, IL 60607",
+    "SFX/MPX — Portland, Maine\nStreet address not recorded",
   shippingMethod: "Next Day Air",
   priority: "High",
   specialInstructions:
     "Deliver to technician van before Friday dispatch. Contact site manager on arrival.",
   printerModel: "GD9630",
-  serialNumber: "GD9630-SN-001",
-  assetId: "GD-9630-001",
-  location: "SFX Chicago Production Floor",
+  serialNumber: "3496243",
+  assetId: "td-garden",
+  location: "SFX/MPX — Portland, Maine",
   relatedTicket: "TCK-1001",
   lines: [
     {

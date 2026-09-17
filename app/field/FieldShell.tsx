@@ -73,15 +73,16 @@ export default function FieldShell({
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
-          <div>
+      <a href="#field-main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-cyan-300 focus:p-3 focus:text-slate-950">Skip to main content</a>
+      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
+          <div className="min-w-0 flex-1">
             <p className="text-xs uppercase tracking-widest text-cyan-400">
               Matrix Field
             </p>
             <h1 className="text-lg font-bold sm:text-xl">{title}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${statusClasses(status)}`}
               role="status"
@@ -98,26 +99,22 @@ export default function FieldShell({
               href="/dashboard"
               className="min-h-11 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:border-cyan-500 hover:text-cyan-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
             >
-              Desktop
+              Main Dashboard
             </Link>
           </div>
         </div>
-      </header>
-
-      <main className="mx-auto max-w-3xl px-4 py-4 pb-28">{children}</main>
-
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-800 bg-slate-900/95 backdrop-blur"
-        aria-label="Field primary"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-800 bg-slate-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:static lg:bg-transparent lg:pb-0"
+        aria-label="Field primary navigation"
       >
-        <ul className="mx-auto grid max-w-3xl grid-cols-3 gap-1 px-2 py-2 sm:grid-cols-6">
+        <ul className="mx-auto grid max-w-7xl grid-cols-3 gap-1 px-2 py-2 sm:grid-cols-6 lg:flex lg:flex-wrap lg:gap-2 lg:px-6">
           {fieldNav.map((item) => {
             const active = item.match(pathname);
             return (
-              <li key={item.href}>
+              <li key={item.href} className="min-w-0 lg:flex-1">
                 <Link
                   href={item.href}
-                  className={`flex min-h-12 flex-col items-center justify-center rounded-lg px-1 text-center text-[11px] font-semibold leading-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 ${
+                  className={`flex min-h-12 flex-col items-center justify-center rounded-lg px-2 text-center text-xs font-semibold leading-tight lg:text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 ${
                     active
                       ? "bg-cyan-500/15 text-cyan-300"
                       : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
@@ -131,6 +128,11 @@ export default function FieldShell({
           })}
         </ul>
       </nav>
+      </header>
+
+      <main id="field-main" tabIndex={-1} className="mx-auto min-w-0 max-w-7xl break-words px-4 py-6 pb-[calc(10rem+env(safe-area-inset-bottom))] focus:outline-none sm:pb-[calc(7rem+env(safe-area-inset-bottom))] lg:px-6 lg:pb-8">{children}</main>
+
+
       <FieldServiceWorkerRegister />
     </div>
   );

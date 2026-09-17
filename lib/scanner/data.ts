@@ -1,3 +1,4 @@
+import {initialEquipment} from '../equipment/catalog';
 import type {
   ScannedDiagramCalloutResult,
   ScannedPartResult,
@@ -92,80 +93,7 @@ export const sampleParts: ScannedPartResult[] = [
   },
 ];
 
-export const samplePrinters: ScannedPrinterResult[] = [
-  {
-    kind: "printer",
-    assetId: "MX-GD-002",
-    model: "GD9630",
-    serialNumber: "GD9630-SN-DEV-002",
-    location: "SFX Chicago Production Floor",
-    customer: "SFX / MPX",
-    status: "PM Due",
-    digitalTwinSlug: "MX-GD-002",
-    lastServiceDate: "2026-05-30",
-    openTicketCount: 1,
-  },
-  {
-    kind: "printer",
-    assetId: "MX-GD-001",
-    model: "GD9630",
-    serialNumber: "GD9630-SN-DEV-001",
-    location: "SFX Chicago Print Room",
-    customer: "SFX / MPX",
-    status: "Online",
-    digitalTwinSlug: "MX-GD-001",
-    lastServiceDate: "2026-06-21",
-    openTicketCount: 0,
-  },
-  {
-    kind: "printer",
-    assetId: "MX-GL-001",
-    model: "GL9730",
-    serialNumber: "GL9730-SN-DEV-001",
-    location: "MPX Los Angeles Plant",
-    customer: "SFX / MPX",
-    status: "Online",
-    digitalTwinSlug: "MX-GL-001",
-    lastServiceDate: "2026-06-27",
-    openTicketCount: 0,
-  },
-  {
-    kind: "printer",
-    assetId: "MX-VA-002",
-    model: "Valezus",
-    serialNumber: "VAL-SN-DEV-002",
-    location: "MPX Miami Creative Center",
-    customer: "SFX / MPX",
-    status: "Attention",
-    digitalTwinSlug: "MX-VA-002",
-    lastServiceDate: "2026-06-08",
-    openTicketCount: 1,
-  },
-  {
-    kind: "printer",
-    assetId: "MX-T22-001",
-    model: "T2200",
-    serialNumber: "T2200-SN-DEV-001",
-    location: "SFX Portland Mail Room",
-    customer: "SFX / MPX",
-    status: "Online",
-    digitalTwinSlug: "MX-T22-001",
-    lastServiceDate: "2026-07-01",
-    openTicketCount: 0,
-  },
-  {
-    kind: "printer",
-    assetId: "MX-T21-001",
-    model: "T2100",
-    serialNumber: "T2100-SN-DEV-001",
-    location: "MPX Boston Copy Center",
-    customer: "SFX / MPX",
-    status: "Online",
-    digitalTwinSlug: "MX-T21-001",
-    lastServiceDate: "2026-06-28",
-    openTicketCount: 0,
-  },
-];
+export const samplePrinters:ScannedPrinterResult[]=initialEquipment.filter(p=>!p.removed).map(p=>({kind:'printer',assetId:p.id,model:p.model,serialNumber:p.serialNumber,location:p.location,customer:'SFX/MPX',status:'Not verified',digitalTwinSlug:p.id,lastServiceDate:'Not recorded',openTicketCount:0}));
 
 export const sampleDiagramCallouts: ScannedDiagramCalloutResult[] = [
   {
@@ -221,15 +149,7 @@ export const sampleDiagramCallouts: ScannedDiagramCalloutResult[] = [
 ];
 
 /** Values returned by the Mock Scan button (cycles through samples). */
-export const mockScanValues = [
-  "RIS-GD-FR-2201",
-  "MX-GD-002",
-  "GD9630-SN-DEV-002",
-  "GD9630-FU-12",
-  "RIS-VA-INK-7703",
-  "MX-T22-001",
-  "T2100-SN-DEV-001",
-];
+export const mockScanValues=['RIS-GD-FR-2201','td-garden','3496243','GD9630-FU-12','36200237'];
 
 export const SCANNER_INTEGRATION_PLACEHOLDERS = {
   realCameraScanner: "pending" as const,

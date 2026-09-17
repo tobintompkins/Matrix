@@ -72,3 +72,8 @@ Thumbs.db
 # Customer portal uploaded files
 /data/portal-uploads/
 
+# Persistent printer catalog
+/data/equipment.sqlite*
+
+# Installer source backups
+.matrix-backups/

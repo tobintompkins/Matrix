@@ -23,8 +23,43 @@ import {
   isMeterValidForPm,
   invalidateOperationalRecord,
 } from "@/lib/admin/data";
-import { listServiceCalls, getServiceCall } from "@/lib/service-calls/repository";
-import { sampleServiceCalls } from "@/lib/service-calls/data";
+import {
+  createServiceCall,
+  listServiceCalls,
+  getServiceCall,
+} from "@/lib/service-calls/repository";
+import type { ServiceCall } from "@/lib/service-calls/types";
+
+function ensureTestServiceCall(): ServiceCall {
+  const existing = listServiceCalls()[0];
+  if (existing) return existing;
+  const result = createServiceCall({
+    machineId: "yankee",
+    serviceType: "BREAK_FIX",
+    issueTitle: "Admin data test call",
+    problemDescription: "Created for unit tests after demo seeds were removed.",
+    errorCode: "",
+    symptoms: "",
+    customerImpact: "",
+    machineCurrentlyDown: false,
+    priority: "NORMAL",
+    reportedBy: "Test",
+    reporterPhone: "",
+    reporterEmail: "",
+    technician: "Toby Tompkins",
+    serviceManager: "Test Manager",
+    organization: "SFX / MPX",
+    region: "Portland, Maine",
+    requestedServiceDate: "2026-09-17",
+    scheduledStart: "2026-09-17T14:00:00.000Z",
+    estimatedDurationHours: 1,
+    isDraft: false,
+    createdBy: "Test",
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error(result.error);
+  return result.call;
+}
 
 describe("Patch 49B data administration permissions", () => {
   it("exposes data-admin routes to administrators and hides from technicians", () => {
@@ -99,7 +134,7 @@ describe("Operational state and service-call soft delete", () => {
   });
 
   it("soft deletes a service call and hides it from normal lists", () => {
-    const sample = sampleServiceCalls[0];
+    const sample = ensureTestServiceCall();
     assert.ok(sample);
     const actor = {
       userId: "admin-1",
@@ -160,7 +195,7 @@ describe("Bulk actions", () => {
 
 describe("getServiceCall still resolves deleted records for restore", () => {
   it("finds soft-deleted calls by id", () => {
-    const sample = sampleServiceCalls[0];
+    const sample = ensureTestServiceCall();
     const call = getServiceCall(sample.id);
     assert.ok(call);
   });

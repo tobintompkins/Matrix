@@ -66,6 +66,7 @@ function statusVariant(status: MachineStatus): MatrixStatusVariant {
 }
 
 function healthClass(band: MachineHealthBand): string {
+  if(band === "UNKNOWN") return "text-slate-400";
   switch (band) {
     case "HEALTHY":
       return "text-emerald-400";
@@ -79,7 +80,7 @@ function healthClass(band: MachineHealthBand): string {
 }
 
 function formatMeter(n: number): string {
-  return n.toLocaleString("en-US");
+  return Number.isFinite(n)?n.toLocaleString("en-US"):"Not recorded";
 }
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -178,7 +179,7 @@ export default function DigitalTwinDetailPanel({ machine }: Props) {
           label="Health Score"
           value={
             <span className={healthClass(m.health.band)}>
-              {m.health.score}
+              {Number.isFinite(m.health.score)?m.health.score:"Not verified"}
             </span>
           }
         />
@@ -353,7 +354,7 @@ export default function DigitalTwinDetailPanel({ machine }: Props) {
 
           <MatrixCard title="Health & Status">
             <p className={`text-3xl font-bold ${healthClass(m.health.band)}`}>
-              {m.health.score}{" "}
+              {Number.isFinite(m.health.score)?m.health.score:"Not verified"}{" "}
               <span className="text-lg">{m.health.band}</span>
             </p>
             <p className="mt-2 text-xs text-slate-500">

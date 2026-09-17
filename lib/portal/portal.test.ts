@@ -18,7 +18,42 @@ import {
   validatePortalUpload,
 } from "./index";
 import { resetRateLimitsForTests } from "./security";
-import { listServiceCalls } from "@/lib/service-calls";
+import {
+  createServiceCall,
+  listServiceCalls,
+  type ServiceCall,
+} from "@/lib/service-calls";
+
+function ensureTestServiceCall(): ServiceCall {
+  const existing = listServiceCalls()[0];
+  if (existing) return existing;
+  const result = createServiceCall({
+    machineId: "yankee",
+    serviceType: "BREAK_FIX",
+    issueTitle: "Portal test call",
+    problemDescription: "Created for unit tests after demo seeds were removed.",
+    errorCode: "",
+    symptoms: "",
+    customerImpact: "",
+    machineCurrentlyDown: false,
+    priority: "NORMAL",
+    reportedBy: "Test",
+    reporterPhone: "",
+    reporterEmail: "",
+    technician: "Toby Tompkins",
+    serviceManager: "Test Manager",
+    organization: "SFX / MPX",
+    region: "Portland, Maine",
+    requestedServiceDate: "2026-09-17",
+    scheduledStart: "2026-09-17T14:00:00.000Z",
+    estimatedDurationHours: 1,
+    isDraft: false,
+    createdBy: "Test",
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error(result.error);
+  return result.call;
+}
 
 describe("customer portal Patch 42", () => {
   beforeEach(() => {
@@ -47,7 +82,7 @@ describe("customer portal Patch 42", () => {
 
   it("blocks cross-customer ticket access", () => {
     // Northstar admin must not open SFX-only tickets by id if not authorized
-    const sfxTicket = listServiceCalls()[0];
+    const sfxTicket = ensureTestServiceCall();
     assert.ok(sfxTicket);
     const denied = attemptCrossCustomerTicketAccess("mem-north-admin", sfxTicket.id);
     // May be denied if ticket doesn't touch northstar printers
@@ -161,7 +196,7 @@ describe("customer portal Patch 42", () => {
 
   it("does not leak internal fields on ticket DTO", () => {
     setActivePortalMembership("mem-sfx-admin");
-    const tickets = listServiceCalls();
+    const tickets = [ensureTestServiceCall(), ...listServiceCalls()];
     const authorized = tickets.find((c) =>
       getPortalTicket(c.id).ok,
     );
@@ -177,7 +212,7 @@ describe("customer portal Patch 42", () => {
 
   it("submits feedback once per user/ticket", () => {
     setActivePortalMembership("mem-sfx-admin");
-    const call = listServiceCalls()[0];
+    const call = ensureTestServiceCall();
     if (!call) return;
     const detail = getPortalTicket(call.id);
     if (!detail.ok) return;

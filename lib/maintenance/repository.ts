@@ -35,12 +35,12 @@ import type {
   UpdateIntervalInput,
 } from "./types";
 
-const PROFILE_KEY = "matrix.maintenance.profiles.v2";
-const HISTORY_KEY = "matrix.maintenance.copy-history.v2";
-const TIMELINE_KEY = "matrix.maintenance.timeline.v2";
-const COMPLETIONS_KEY = "matrix.maintenance.completions.v2";
+const PROFILE_KEY = "matrix.maintenance.portland.profiles.v1";
+const HISTORY_KEY = "matrix.maintenance.portland.copy-history.v1";
+const TIMELINE_KEY = "matrix.maintenance.portland.timeline.v1";
+const COMPLETIONS_KEY = "matrix.maintenance.portland.completions.v1";
 const INTERVALS_KEY = "matrix.maintenance.intervals.v2";
-const SCHEDULE_KEY = "matrix.maintenance.schedules.v1";
+const SCHEDULE_KEY = "matrix.maintenance.portland.schedules.v1";
 const AUDIT_KEY = "matrix.maintenance.audit.v1";
 
 let profilesStore: PrinterMaintenanceProfile[] | null = null;
@@ -139,71 +139,9 @@ function commitIntervals(next: MaintenanceIntervalConfig[]): void {
   writeJson(INTERVALS_KEY, next);
 }
 
-function sampleSchedules(): MaintenanceScheduleEvent[] {
-  const today = new Date();
-  const iso = (offset: number) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + offset);
-    return d.toISOString().slice(0, 10);
-  };
-  return [
-    {
-      id: "msch-001",
-      printerId: "MX-GD-002",
-      printerName: "Press Room GD",
-      customerName: "SFX / MPX",
-      siteName: "Chicago HQ",
-      kind: "PM",
-      scheduledDate: iso(1),
-      technician: "Toby Tompkins",
-      priority: "HIGH",
-      expectedDurationHours: 3,
-      notes: "Scheduled from fleet planning center",
-      createdAt: new Date().toISOString(),
-      createdBy: "Matrix Planner",
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: "msch-002",
-      printerId: "MX-GD-001",
-      printerName: "Main GD",
-      customerName: "SFX / MPX",
-      siteName: "Chicago HQ",
-      kind: "CLEANING",
-      scheduledDate: iso(0),
-      technician: "Toby Tompkins",
-      priority: "NORMAL",
-      expectedDurationHours: 1.5,
-      notes: "Routine cleaning window",
-      createdAt: new Date().toISOString(),
-      createdBy: "Matrix Planner",
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: "msch-003",
-      printerId: "MX-GL-001",
-      printerName: "GL Production",
-      customerName: "SFX / MPX",
-      siteName: "Dallas Plant",
-      kind: "JOINT_UNIT",
-      scheduledDate: iso(5),
-      technician: "Field Tech B",
-      priority: "URGENT",
-      expectedDurationHours: 4,
-      notes: "Joint unit PM planning",
-      createdAt: new Date().toISOString(),
-      createdBy: "Matrix Planner",
-      updatedAt: new Date().toISOString(),
-    },
-  ];
-}
+function sampleSchedules(): MaintenanceScheduleEvent[] { return []; }
 
-function ensureSchedules(): MaintenanceScheduleEvent[] {
-  if (scheduleStore) return scheduleStore;
-  scheduleStore =
-    readJson<MaintenanceScheduleEvent[]>(SCHEDULE_KEY) ?? sampleSchedules();
-  return scheduleStore;
-}
+function ensureSchedules(): MaintenanceScheduleEvent[] { if(scheduleStore) return scheduleStore; scheduleStore=readJson<MaintenanceScheduleEvent[]>(SCHEDULE_KEY)??sampleSchedules(); return scheduleStore; }
 
 function ensureAudit(): MaintenanceAuditEntry[] {
   if (auditStore) return auditStore;

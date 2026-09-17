@@ -1,20 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {useCatalog} from '@/lib/equipment/use-catalog';
+import type {WizardPrinter} from '@/lib/job-wizard/types';
+import { useMemo, useState } from "react";
 import WorkflowPanel from "@/app/components/WorkflowPanel";
 import { getWorkflowActions } from "@/lib/workflow/registry";
 import { useWorkflowContext } from "@/lib/workflow/use-workflow-context";
 import {
   createInitialPartRequests,
-  pmPartCatalog,
   pmTypes,
-  printerOptions,
 } from "@/lib/pm-kit/data";
 import type { PMPartRequest, PMType } from "@/lib/pm-kit/types";
 
 function formatNumber(value: number): string {
-  return value.toLocaleString("en-US");
+  return Number.isFinite(value)?value.toLocaleString("en-US"):"Not recorded";
 }
 
 function SectionCard({
@@ -39,16 +39,24 @@ function SectionCard({
   );
 }
 
-export default function PMKitRequestForm() {
+export default function PMKitRequestForm(){
+ const {catalog,loading,error}=useCatalog();
+ const printerOptions=catalog.equipment.filter(p=>!p.removed).map(p=>({assetId:p.id,customer:'SFX/MPX',model:p.model,serialNumber:p.serialNumber,meterCount:NaN,location:p.location}));
+ if(loading) return <p role="status">Loading printers…</p>;
+ if(error) return <p role="alert">{error}</p>;
+ if(!printerOptions.length) return <p>No active printers. <Link href="/fleet">Manage Printers</Link></p>;
+ return <PMKitRequestFormContent key={catalog.revision} printerOptions={printerOptions}/>;
+}
+function PMKitRequestFormContent({printerOptions}:{printerOptions:WizardPrinter[]}) {
   const workflowContext = useWorkflowContext();
   const [selectedAssetId, setSelectedAssetId] = useState(
-    workflowContext.assetId ?? printerOptions[0].assetId,
+    printerOptions.some(p=>p.assetId===workflowContext.assetId)?workflowContext.assetId!:printerOptions[0].assetId,
   );
   const [pmType, setPmType] = useState<PMType>("Full PM Kit");
   const [parts, setParts] = useState<PMPartRequest[]>(createInitialPartRequests);
   const [submitted, setSubmitted] = useState(false);
 
-  const printer = printerOptions.find((p) => p.assetId === selectedAssetId)!;
+  const printer = printerOptions.find((p) => p.assetId === selectedAssetId) ?? printerOptions[0];
 
   const workflowActions = useMemo(
     () =>
@@ -62,13 +70,6 @@ export default function PMKitRequestForm() {
     [printer, workflowContext.ticket],
   );
 
-  useEffect(() => {
-    if (!workflowContext.assetId) return;
-    const match = printerOptions.find(
-      (p) => p.assetId === workflowContext.assetId,
-    );
-    if (match) setSelectedAssetId(match.assetId);
-  }, [workflowContext.assetId]);
 
   const neededParts = parts.filter((part) => part.needed);
 

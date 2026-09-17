@@ -10,6 +10,8 @@ import type { PrinterComponent } from "@/lib/printers/types";
 import { getWorkflowActions } from "@/lib/workflow/registry";
 import { buildWorkflowUrl, withFrom } from "@/lib/workflow/routes";
 
+export const dynamic='force-dynamic';
+
 type PrinterPageProps = {
   params: Promise<{ id: string }>;
 };
@@ -37,7 +39,7 @@ const priorityStyles: Record<string, string> = {
 };
 
 function formatNumber(value: number): string {
-  return value.toLocaleString("en-US");
+  return Number.isFinite(value)?value.toLocaleString("en-US"):"Not recorded";
 }
 
 function InfoCard({

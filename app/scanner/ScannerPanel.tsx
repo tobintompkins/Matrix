@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {useCatalog} from '@/lib/equipment/use-catalog';
+import type {ScannedPrinterResult} from '@/lib/scanner/types';
 import {
   MatrixButton,
   MatrixCard,
@@ -48,6 +50,8 @@ function inventoryClassName(status: string): string {
 type OrderDraftLine = ReturnType<typeof partResultToOrderDraft>;
 
 export default function ScannerPanel() {
+ const {catalog}=useCatalog();
+ const printers:ScannedPrinterResult[]=catalog.equipment.filter(p=>!p.removed).flatMap(p=>[p.serialNumber,p.engine2SerialNumber].filter(Boolean).map(serialNumber=>({kind:'printer',assetId:p.id,model:p.model,serialNumber,location:p.location,customer:'SFX/MPX',status:'Not verified',digitalTwinSlug:p.id,lastServiceDate:'Not recorded',openTicketCount:0})));
   const [query, setQuery] = useState("");
   const [lookup, setLookup] = useState<ScanLookupResult | null>(null);
   const [history, setHistory] = useState<ScannerHistoryItem[]>([]);
@@ -61,7 +65,7 @@ export default function ScannerPanel() {
   );
 
   function runLookup(value: string) {
-    const result = lookupScanValue(value);
+    const result = lookupScanValue(value,printers);
     setLookup(result);
     setHistory((current) => [createHistoryItem(result), ...current].slice(0, 12));
     if (!result.found) {
@@ -205,8 +209,7 @@ export default function ScannerPanel() {
           </div>
 
           <p className="text-xs text-slate-500">
-            Try: RIS-GD-FR-2201 · MX-GD-002 · GD9630-SN-88421 · GD9630-FU-12 ·
-            UNKNOWN-CODE
+            Try: RIS-GD-FR-2201 · td-garden · 3496243 · GD9630-FU-12 · 36200237
           </p>
         </div>
       </MatrixCard>

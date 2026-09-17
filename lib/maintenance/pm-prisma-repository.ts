@@ -391,14 +391,14 @@ export async function ensurePmFleetSeeded(): Promise<{ upserted: number }> {
 
     // Configured only when seed has a last PM count baseline.
     const pmInterval = lastPmCount !== null ? modelDefault : null;
-    const currentMeterCount =
-      profile?.currentCopyCount ?? machine.operational.currentMeterCount ?? null;
+    const meter = profile?.currentCopyCount ?? machine.operational.currentMeterCount;
+    const currentMeterCount = Number.isFinite(meter) ? meter : null;
     const nextPmDueCount = calculateNextPmDueCount(lastPmCount, pmInterval);
 
     const lastPmAt =
       profile?.lastPMDate != null
         ? new Date(`${profile.lastPMDate}T12:00:00.000Z`)
-        : machine.service.lastPmDate
+        : /^\d{4}-\d{2}-\d{2}$/.test(machine.service.lastPmDate)
           ? new Date(`${machine.service.lastPmDate}T12:00:00.000Z`)
           : null;
 

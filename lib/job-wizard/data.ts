@@ -1,3 +1,4 @@
+import {initialEquipment} from '../equipment/catalog';
 import type { ChecklistItem, JobType, WizardPrinter } from "./types";
 
 export const jobTypes: JobType[] = [
@@ -28,32 +29,7 @@ export const technicians = [
   "Sarah Chen",
 ];
 
-export const printerOptions: WizardPrinter[] = [
-  {
-    assetId: "MX-GD-002",
-    customer: "SFX / MPX",
-    model: "GD9630",
-    serialNumber: "GD9630-2024-00842",
-    meterCount: 1112945,
-    location: "SFX Chicago Production Floor",
-  },
-  {
-    assetId: "MX-VA-002",
-    customer: "SFX / MPX",
-    model: "Valezus",
-    serialNumber: "VAL-2023-01567",
-    meterCount: 312480,
-    location: "MPX Miami Creative Center",
-  },
-  {
-    assetId: "MX-GL-001",
-    customer: "SFX / MPX",
-    model: "GL9730",
-    serialNumber: "GL9730-2024-00321",
-    meterCount: 654870,
-    location: "MPX Los Angeles Plant",
-  },
-];
+export const printerOptions:WizardPrinter[]=initialEquipment.filter(p=>!p.removed).map(p=>({assetId:p.id,customer:'SFX/MPX',model:p.model,serialNumber:p.serialNumber,meterCount:NaN,location:p.location}));
 
 export const pmChecklistTemplate: Omit<ChecklistItem, "completed">[] = [
   { id: "feed-rollers", label: "Inspect feed rollers" },
