@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireMatrixPermission } from "@/lib/auth/server";
 import { hasConfiguredFieldApiIdentity } from "@/lib/field/api-authorization";
-import { processReceivedFieldNotes, processReceivedFieldStatuses } from "@/lib/field/server-sync-processor";
+import { processReceivedFieldNotes, processReceivedFieldParts, processReceivedFieldStatuses } from "@/lib/field/server-sync-processor";
 
 /** Manager-only: safe NOTE receipts and validated STATUS_CHANGE receipts. */
 export async function POST(request: Request) {
@@ -16,5 +16,6 @@ export async function POST(request: Request) {
   const limit = Math.max(1, Math.min(50, Math.floor(requested)));
   const notes = await processReceivedFieldNotes(limit);
   const statuses = await processReceivedFieldStatuses(limit);
-  return NextResponse.json({ ok: true, notes, statuses });
+  const parts = await processReceivedFieldParts(limit);
+  return NextResponse.json({ ok: true, notes, statuses, parts });
 }
