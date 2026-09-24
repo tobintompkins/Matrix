@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated validation/preview trees — linting them hangs npm run lint.
+    ".next-ui-preview/**",
+    ".next-validate/**",
+    ".next-validate-*/**",
+    ".matrix-backups/**",
   ]),
 ]);
 

@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireMatrixPermission } from "@/lib/auth/server";
 import { hasConfiguredFieldApiIdentity } from "@/lib/field/api-authorization";
-import { processReceivedFieldNotes, processReceivedFieldParts, processReceivedFieldStatuses } from "@/lib/field/server-sync-processor";
+import {
+  processReceivedFieldCompletions,
+  processReceivedFieldNotes,
+  processReceivedFieldParts,
+  processReceivedFieldStatuses,
+} from "@/lib/field/server-sync-processor";
 
-/** Manager-only: safe NOTE receipts and validated STATUS_CHANGE receipts. */
+/** Manager-only: apply validated field sync receipts (notes, statuses, completions, parts). */
 export async function POST(request: Request) {
   const authResult = await requireMatrixPermission("VIEW_FIELD_ALL_TECHNICIANS");
   if (!authResult.ok) return authResult.response;
@@ -16,6 +21,7 @@ export async function POST(request: Request) {
   const limit = Math.max(1, Math.min(50, Math.floor(requested)));
   const notes = await processReceivedFieldNotes(limit);
   const statuses = await processReceivedFieldStatuses(limit);
+  const completions = await processReceivedFieldCompletions(limit);
   const parts = await processReceivedFieldParts(limit);
-  return NextResponse.json({ ok: true, notes, statuses, parts });
+  return NextResponse.json({ ok: true, notes, statuses, completions, parts });
 }
