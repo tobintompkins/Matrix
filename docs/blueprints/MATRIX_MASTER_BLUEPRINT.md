@@ -354,6 +354,14 @@ The Matrix landing experience is presented to users as the **Service Hub**.
 - **51C.2** — Implemented (Predictive Business Analytics center on ECC; demand/PM/parts/capacity forecasts, scenarios, accuracy, data quality)
 - **51B.2** — In progress: Mobile Technician Experience (51B.2.1–51B.2.10 applied: work queue, access, identity, isolated offline storage, API authorization, sign-out clearing, legacy-store retirement, durable receipts, manager inbox, and server note processing). Remaining gates: controlled processing endpoint, remaining receipt types, technician-ID migration, and real-device verification. Not production-ready.
 
+### 51B.2 Mobile Technician Experience — current delivery status
+
+**Completed:** simplified Field UI; Clerk-based Field access and identity; isolated per-user offline storage; sign-out cache clearing; legacy shared-cache retirement; secure server receipts; Manager Sync Inbox; and controlled server processing for notes, status changes, completions, parts, photos, and attachments.
+
+**Remaining before production release:** replace browser sessionStorage work-order records with server-backed work orders; run the Field real-device readiness checklist; confirm retry, conflict, photo, signature, and completion behavior; and record the results in this blueprint.
+
+**Operational rule:** a received sync receipt is evidence the server accepted an authorized action. A work-order update is complete only after the receipt processor marks it `APPLIED`.
+
 ---
 
 ## Technician Portal
@@ -397,3 +405,27 @@ The Matrix landing experience is presented to users as the **Service Hub**.
 ### 51B.2.2 delivery checkpoint
 - Field Access Checks: applied. Signed-out users still go to sign-in. Configured technician/admin roles with VIEW_FIELD may enter /field. Customer, missing, and invalid roles get 403. Identity lookup failure returns 503. Live Clerk role checks still need a signed-in browser pass.
 - 51B.2 remains in progress. Demo identity replacement, offline isolation, handler-level authorization and real-device workflow validation remain open.
+# 51B.2 Server Work-Order Bridge (controlled rollout)
+
+The Field APIs can now read the durable Prisma `WorkOrder` record through a controlled bridge. Existing browser-backed work orders remain the default and no browser data is deleted.
+
+Enable only after server work orders have been migrated and checked:
+
+```bash
+MATRIX_SERVER_FIELD_WORK_ORDERS=true
+```
+
+The flag affects Field package retrieval, Field session authorization, and Field sync receipt authorization. It can be turned off immediately to return those APIs to the existing repository. Before enabling it, verify the server records include a work-order number, technician assignment, schedule, status, and any required parts/files. The full office Work Orders UI remains on its existing repository until a separately reviewed write migration is complete.
+
+### Bridge preflight
+
+Managers can use **Field → Sync Inbox → Server Work-Order Readiness** to run a read-only preflight. It reports missing technician assignments, schedules, statuses, and titles for server work orders. Do not enable the bridge until the report shows at least one work order and zero blocking records. The preflight does not edit or delete any work order.
+
+### Controlled server copy
+
+Managers can use **Work Orders → Server Work-Order Copy** to copy the current prototype queue to the durable server database. The action requires confirmation. It only creates missing work-order numbers; it never overwrites server records or deletes browser records. Run the readiness preflight after the copy, resolve any reported gaps, and only then perform a limited bridge test.
+
+### Legacy ID continuity
+
+Copied work orders retain their original browser work-order ID in `legacyWorkOrderId`. Field packages, sessions, and sync receipts that were created before the server copy can therefore resolve to the matching durable record. The legacy ID is unique and read-only after the copy; it is a migration bridge, not a replacement for the server record ID.
+

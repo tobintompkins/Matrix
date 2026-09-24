@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db/prisma";
 import type { WorkOrderStatus } from "@/lib/work-orders/types";
+import { validateAttachmentReceipt } from "./attachment-receipt-validation";
+import { buildProtectedAttachmentStorageRef } from "./attachment-storage-guard";
 import { validateCompletionReceipt } from "./completion-receipt-guard";
+import { validatePhotoReceipt } from "./photo-receipt-validation";
+import { buildProtectedPhotoStorageRef } from "./photo-storage-guard";
 import { validateFieldStatusReceipt } from "./status-receipt-validation";
 
 /**
@@ -131,6 +135,114 @@ export async function processReceivedFieldCompletions(limit = 25) {
       prisma.offlineOperation.update({
         where: { id: receipt.id },
         data: { status: "APPLIED", synchronizedAt: new Date() },
+      }),
+    ]);
+    applied += 1;
+  }
+  return { scanned: receipts.length, applied, waiting };
+}
+
+export async function processReceivedFieldPhotos(limit = 25) {
+  const receipts = await prisma.offlineOperation.findMany({
+    where: { status: "RECEIVED", type: "PHOTO" },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+  let applied = 0;
+  let waiting = 0;
+  for (const receipt of receipts) {
+    const payload = JSON.parse(receipt.payload ?? "{}") as Record<string, unknown>;
+    const check = validatePhotoReceipt(payload);
+    if (!check.ok || !receipt.workOrderId) {
+      await prisma.offlineOperation.update({
+        where: { id: receipt.id },
+        data: {
+          status: "REJECTED",
+          lastError: check.ok ? "A server work order is required." : check.error,
+        },
+      });
+      continue;
+    }
+    const order = await prisma.workOrder.findUnique({
+      where: { id: receipt.workOrderId },
+      select: { id: true },
+    });
+    if (!order) {
+      waiting += 1;
+      continue;
+    }
+    await prisma.$transaction([
+      prisma.workOrderFile.create({
+        data: {
+          workOrderId: order.id,
+          kind: "PHOTO",
+          fileName: check.fileName,
+          mimeType: check.mimeType,
+          sizeBytes: check.sizeBytes,
+          uploadedBy: receipt.technicianName ?? "Field technician",
+          storageRef: buildProtectedPhotoStorageRef({
+            operationId: receipt.operationId,
+            fileName: check.fileName,
+          }),
+        },
+      }),
+      prisma.offlineOperation.update({
+        where: { id: receipt.id },
+        data: { status: "APPLIED", synchronizedAt: new Date(), lastError: null },
+      }),
+    ]);
+    applied += 1;
+  }
+  return { scanned: receipts.length, applied, waiting };
+}
+
+export async function processReceivedFieldAttachments(limit = 25) {
+  const receipts = await prisma.offlineOperation.findMany({
+    where: { status: "RECEIVED", type: "ATTACHMENT" },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+  let applied = 0;
+  let waiting = 0;
+  for (const receipt of receipts) {
+    const payload = JSON.parse(receipt.payload ?? "{}") as Record<string, unknown>;
+    const check = validateAttachmentReceipt(payload);
+    if (!check.ok || !receipt.workOrderId) {
+      await prisma.offlineOperation.update({
+        where: { id: receipt.id },
+        data: {
+          status: "REJECTED",
+          lastError: check.ok ? "A server work order is required." : check.error,
+        },
+      });
+      continue;
+    }
+    const order = await prisma.workOrder.findUnique({
+      where: { id: receipt.workOrderId },
+      select: { id: true },
+    });
+    if (!order) {
+      waiting += 1;
+      continue;
+    }
+    await prisma.$transaction([
+      prisma.workOrderFile.create({
+        data: {
+          workOrderId: order.id,
+          kind: "ATTACHMENT",
+          fileName: check.fileName,
+          mimeType: check.mimeType,
+          sizeBytes: check.sizeBytes,
+          uploadedBy: receipt.technicianName ?? "Field technician",
+          storageRef: buildProtectedAttachmentStorageRef({
+            operationId: receipt.operationId,
+            fileName: check.fileName,
+          }),
+        },
+      }),
+      prisma.offlineOperation.update({
+        where: { id: receipt.id },
+        data: { status: "APPLIED", synchronizedAt: new Date(), lastError: null },
       }),
     ]);
     applied += 1;

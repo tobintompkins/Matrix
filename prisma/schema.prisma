@@ -386,6 +386,8 @@ model ServiceTicket {
 model WorkOrder {
   id                   String   @id @default(cuid())
   workOrderNumber      String   @unique
+  /// Stable source ID from the browser prototype during the controlled migration.
+  legacyWorkOrderId    String?  @unique
   title                String
   description          String?
   customerId           String?

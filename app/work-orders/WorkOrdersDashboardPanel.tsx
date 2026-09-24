@@ -33,6 +33,8 @@ export default function WorkOrdersDashboardPanel() {
     defaultWorkOrderFilters("Toby Tompkins"),
   );
   const [tick, setTick] = useState(0);
+  const [copying, setCopying] = useState(false);
+  const [copyNotice, setCopyNotice] = useState("");
 
   const orders = useMemo(() => {
     void tick;
@@ -85,6 +87,34 @@ export default function WorkOrdersDashboardPanel() {
     setFilters((f) => ({ ...f, [key]: value }));
   }
 
+  async function copyQueueToServer() {
+    if (copying || orders.length === 0) return;
+    const confirmed = window.confirm(
+      `Copy ${orders.length} work order(s) to the server? Existing server records will be skipped and browser records will stay unchanged.`,
+    );
+    if (!confirmed) return;
+    setCopying(true);
+    setCopyNotice("Copying work orders to the server…");
+    try {
+      const response = await fetch("/api/work-orders/server-import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirmation: "COPY_WORK_ORDERS_TO_SERVER", orders }),
+      });
+      const body = await response.json() as {
+        result?: { inserted: number; skipped: number; rejected: Array<{ workOrderNumber: string; reason: string }> };
+        error?: string;
+      };
+      if (!response.ok || !body.result) throw new Error(body.error ?? "Could not copy work orders.");
+      const rejected = body.result.rejected.length ? ` ${body.result.rejected.length} need attention.` : "";
+      setCopyNotice(`Server copy complete: ${body.result.inserted} added, ${body.result.skipped} already present.${rejected}`);
+    } catch (error) {
+      setCopyNotice(error instanceof Error ? error.message : "Could not copy work orders.");
+    } finally {
+      setCopying(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -132,6 +162,16 @@ export default function WorkOrdersDashboardPanel() {
           </MatrixButton>
         </MatrixCard>
       </div>
+
+      <MatrixCard title="Server Work-Order Copy" subtitle="Copies the current browser queue to durable server records. Existing server records are never changed.">
+        <div className="flex flex-wrap items-center gap-3">
+          <MatrixButton variant="secondary" size="sm" disabled={copying || orders.length === 0} onClick={() => void copyQueueToServer()}>
+            {copying ? "Copying…" : `Copy ${orders.length} Work Orders to Server`}
+          </MatrixButton>
+          <span className="text-xs text-slate-400">Use once before the controlled Field bridge test.</span>
+        </div>
+        {copyNotice && <p role="status" className="mt-3 text-sm text-cyan-200">{copyNotice}</p>}
+      </MatrixCard>
 
       <MatrixCard
         title="Work Order Queue"

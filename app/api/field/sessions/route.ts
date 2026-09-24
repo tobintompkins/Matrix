@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireMatrixPermission } from "@/lib/auth/server";
 import { canAccessFieldWorkOrder, hasConfiguredFieldApiIdentity } from "@/lib/field/api-authorization";
 import { SESSION_ACTIONS_REQUIRING_REASON, type WorkSessionAction } from "@/lib/field/types";
-import { getWorkOrder } from "@/lib/work-orders/repository";
+import { getFieldWorkOrder } from "@/lib/work-orders/server-field-repository";
 
 /** Work-session action validation endpoint (server authority). */
 export async function POST(request: Request) {
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  const workOrder = getWorkOrder(body.workOrderId);
+  const workOrder = await getFieldWorkOrder(body.workOrderId);
   if (!workOrder) return NextResponse.json({ ok: false, error: "Work order not found" }, { status: 404 });
   if (!canAccessFieldWorkOrder(authResult.profile, workOrder)) {
     return NextResponse.json({ ok: false, error: "This work order is not assigned to the signed-in technician" }, { status: 403 });

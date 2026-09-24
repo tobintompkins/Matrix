@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireMatrixPermission } from "@/lib/auth/server";
 import { canAccessFieldWorkOrder, hasConfiguredFieldApiIdentity } from "@/lib/field/api-authorization";
-import { listWorkOrders, getWorkOrder } from "@/lib/work-orders/repository";
+import { getFieldWorkOrder, listFieldWorkOrders } from "@/lib/work-orders/server-field-repository";
 import { buildOfflinePackageSnapshot, estimatePackageSize } from "@/lib/field/packages";
 
 /**
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const scope = searchParams.get("scope") ?? "one";
 
   if (scope === "today" || scope === "week") {
-    const all = listWorkOrders();
+    const all = await listFieldWorkOrders();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const end = new Date(today);
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const wo = getWorkOrder(workOrderId);
+  const wo = await getFieldWorkOrder(workOrderId);
   if (!wo) {
     return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
   }

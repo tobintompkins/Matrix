@@ -4,7 +4,7 @@ import { canAccessFieldWorkOrder, hasConfiguredFieldApiIdentity } from "@/lib/fi
 import { listRecentFieldSyncReceipts, recordFieldSyncReceipt } from "@/lib/field/server-sync-receipts";
 import type { AuthorizedFieldSyncOperation } from "@/lib/field/sync-receipt";
 import type { OfflineOpType } from "@/lib/field/types";
-import { getWorkOrder } from "@/lib/work-orders/repository";
+import { getFieldWorkOrder } from "@/lib/work-orders/server-field-repository";
 
 const FIELD_OPERATION_TYPES = new Set<OfflineOpType>([
   "STATUS_CHANGE", "WORK_SESSION", "NOTE", "COPY_COUNT", "TIME_ENTRY", "PARTS_USAGE",
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       return { operationId: op.operationId, status: "REJECTED", error: "Operation owner does not match the signed-in user" };
     }
     if (typeof op.workOrderId === "string" && op.workOrderId) {
-      const workOrder = getWorkOrder(op.workOrderId);
+      const workOrder = await getFieldWorkOrder(op.workOrderId);
       if (!workOrder) return { operationId: op.operationId, status: "REJECTED", error: "Work order not found" };
       if (!canAccessFieldWorkOrder(authResult.profile, workOrder)) {
         return { operationId: op.operationId, status: "REJECTED", error: "This work order is not assigned to the signed-in technician" };
