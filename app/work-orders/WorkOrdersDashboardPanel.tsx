@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
+import OfficeQueueRolloutBanner from "./OfficeQueueRolloutBanner";
+import WorkOrdersOfficeRolloutGuardCard from "./WorkOrdersOfficeRolloutGuardCard";
+import WorkOrdersServerCompareCard from "./WorkOrdersServerCompareCard";
+import { useOfficeQueueRollout } from "./useOfficeQueueRollout";
+import {
+  fetchServerOfficeWorkOrders,
+  type OfficeQueueLoadState,
+} from "@/lib/work-orders/office-queue-client";
+import type { WorkOrder } from "@/lib/work-orders/types";
 import {
   MatrixButton,
   MatrixCard,
@@ -28,19 +37,63 @@ import {
   WORK_ORDER_STATUS_ORDER,
 } from "@/lib/work-orders";
 
-export default function WorkOrdersDashboardPanel() {
+type Props = {
+  serverOfficeQueueEnabled?: boolean;
+};
+
+export default function WorkOrdersDashboardPanel({
+  serverOfficeQueueEnabled = false,
+}: Props) {
   const [filters, setFilters] = useState<WorkOrderFilterState>(
     defaultWorkOrderFilters("Toby Tompkins"),
   );
   const [tick, setTick] = useState(0);
+  const { rollout, useServerQueue } = useOfficeQueueRollout(serverOfficeQueueEnabled, tick);
   const [copying, setCopying] = useState(false);
   const [copyNotice, setCopyNotice] = useState("");
   const [copyCheckNotice, setCopyCheckNotice] = useState("");
+  const [serverLoadState, setServerLoadState] = useState<OfficeQueueLoadState>("idle");
+  const [serverLoadError, setServerLoadError] = useState("");
+  const [serverOrders, setServerOrders] = useState<WorkOrder[]>([]);
 
-  const orders = useMemo(() => {
+  const browserOrders = useMemo(() => {
     void tick;
     return listWorkOrders();
   }, [tick]);
+
+  const loadServerQueue = useCallback(async () => {
+    startTransition(() => {
+      setServerLoadState("loading");
+      setServerLoadError("");
+    });
+    const result = await fetchServerOfficeWorkOrders();
+    if (!result.ok) {
+      startTransition(() => {
+        setServerOrders([]);
+        setServerLoadState("error");
+        setServerLoadError(result.error);
+      });
+      return;
+    }
+    startTransition(() => {
+      setServerOrders(result.workOrders);
+      setServerLoadState("ready");
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!useServerQueue) return;
+    startTransition(() => {
+      void loadServerQueue();
+    });
+  }, [useServerQueue, loadServerQueue]);
+
+  const orders = useServerQueue ? serverOrders : browserOrders;
+
+  function reloadQueue() {
+    if (useServerQueue) void loadServerQueue();
+    else setTick((t) => t + 1);
+  }
 
   const metrics = useMemo(() => computeWorkOrderMetrics(orders), [orders]);
 
@@ -89,9 +142,9 @@ export default function WorkOrdersDashboardPanel() {
   }
 
   async function copyQueueToServer() {
-    if (copying || orders.length === 0) return;
+    if (copying || browserOrders.length === 0) return;
     const confirmed = window.confirm(
-      `Copy ${orders.length} work order(s) to the server? Existing server records will be skipped and browser records will stay unchanged.`,
+      `Copy ${browserOrders.length} work order(s) to the server? Existing server records will be skipped and browser records will stay unchanged.`,
     );
     if (!confirmed) return;
     setCopying(true);
@@ -100,7 +153,7 @@ export default function WorkOrdersDashboardPanel() {
       const response = await fetch("/api/work-orders/server-import", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ confirmation: "COPY_WORK_ORDERS_TO_SERVER", orders }),
+        body: JSON.stringify({ confirmation: "COPY_WORK_ORDERS_TO_SERVER", orders: browserOrders }),
       });
       const body = await response.json() as {
         result?: { inserted: number; skipped: number; rejected: Array<{ workOrderNumber: string; reason: string }> };
@@ -127,17 +180,21 @@ export default function WorkOrdersDashboardPanel() {
       if (!response.ok) throw new Error(body.error ?? "Could not check server work orders.");
       const server = body.workOrders ?? [];
       const serverIds = new Set(server.flatMap((order) => [order.id, order.legacyWorkOrderId ?? "", order.workOrderNumber]));
-      const missing = orders.filter((order) => !serverIds.has(order.id) && !serverIds.has(order.workOrderNumber));
+      const missing = browserOrders.filter((order) => !serverIds.has(order.id) && !serverIds.has(order.workOrderNumber));
       setCopyCheckNotice(missing.length
         ? `${server.length} server records found. ${missing.length} browser work order(s) still need copying: ${missing.slice(0, 5).map((order) => order.workOrderNumber).join(", ")}${missing.length > 5 ? "…" : ""}`
-        : `Copy check passed: all ${orders.length} browser work order(s) have matching server records.`);
+        : `Copy check passed: all ${browserOrders.length} browser work order(s) have matching server records.`);
     } catch (error) {
       setCopyCheckNotice(error instanceof Error ? error.message : "Could not check server work orders.");
     }
   }
 
+  const queueLoading = useServerQueue && serverLoadState === "loading";
+  const queueError = useServerQueue && serverLoadState === "error";
+
   return (
     <div className="space-y-8">
+      <OfficeQueueRolloutBanner rollout={rollout} context="list" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MatrixStatCard label="Open Work Orders" value={metrics.open} />
         <MatrixStatCard
@@ -177,17 +234,20 @@ export default function WorkOrdersDashboardPanel() {
           <MatrixButton
             variant="secondary"
             size="sm"
-            onClick={() => setTick((t) => t + 1)}
+            onClick={reloadQueue}
           >
             Reload queue
           </MatrixButton>
         </MatrixCard>
       </div>
 
+      <WorkOrdersServerCompareCard />
+      <WorkOrdersOfficeRolloutGuardCard />
+
       <MatrixCard title="Server Work-Order Copy" subtitle="Copies the current browser queue to durable server records. Existing server records are never changed.">
         <div className="flex flex-wrap items-center gap-3">
-          <MatrixButton variant="secondary" size="sm" disabled={copying || orders.length === 0} onClick={() => void copyQueueToServer()}>
-            {copying ? "Copying…" : `Copy ${orders.length} Work Orders to Server`}
+          <MatrixButton variant="secondary" size="sm" disabled={copying || browserOrders.length === 0} onClick={() => void copyQueueToServer()}>
+            {copying ? "Copying…" : `Copy ${browserOrders.length} Work Orders to Server`}
           </MatrixButton>
           <MatrixButton variant="secondary" size="sm" onClick={() => void checkServerCopy()}>
             Check Server Copy
@@ -200,7 +260,11 @@ export default function WorkOrdersDashboardPanel() {
 
       <MatrixCard
         title="Work Order Queue"
-        subtitle="Search and filter the enterprise work order backlog"
+        subtitle={
+          useServerQueue
+            ? "Durable server backlog (controlled manager rollout)"
+            : "Search and filter the enterprise work order backlog"
+        }
       >
         <div className="mb-4 grid gap-3 lg:grid-cols-4">
           <div className="lg:col-span-2">
@@ -343,10 +407,25 @@ export default function WorkOrdersDashboardPanel() {
           </label>
         </div>
 
-        {visible.length === 0 ? (
+        {queueLoading ? (
+          <p role="status" className="py-10 text-center text-sm text-slate-400">
+            Loading durable server work orders…
+          </p>
+        ) : queueError ? (
           <MatrixEmptyState
-            title="No work orders match"
-            description="Adjust filters or create a new work order."
+            title="Could not load server work orders"
+            description={serverLoadError}
+            actionLabel="Retry"
+            onAction={() => void loadServerQueue()}
+          />
+        ) : visible.length === 0 ? (
+          <MatrixEmptyState
+            title={useServerQueue ? "No server work orders yet" : "No work orders match"}
+            description={
+              useServerQueue
+                ? "Create a server work order via the migration APIs or copy browser records to the server."
+                : "Adjust filters or create a new work order."
+            }
           />
         ) : (
           <div className="overflow-x-auto">

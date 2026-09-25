@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
+import OfficeQueueRolloutBanner from "./OfficeQueueRolloutBanner";
+import { useOfficeQueueRollout } from "./useOfficeQueueRollout";
+import {
+  fetchServerOfficeWorkOrderDetail,
+  type OfficeQueueLoadState,
+} from "@/lib/work-orders/office-queue-client";
 import {
   MatrixButton,
   MatrixCard,
@@ -32,17 +38,27 @@ import {
   updateWorkOrderSchedule,
   updateWorkOrderStatus,
   type WorkOrder,
+  type WorkOrderAuditEntry,
   type WorkOrderStatus,
+  type WorkOrderTimelineEvent,
 } from "@/lib/work-orders";
 
 type Props = {
   workOrderId: string;
+  serverOfficeQueueEnabled?: boolean;
 };
 
-export default function WorkOrderDetailPanel({ workOrderId }: Props) {
-  const canUpdate = hasMatrixPermission(DEV_FALLBACK_ROLE, "UPDATE_WORK_ORDER");
-  const canAssign = hasMatrixPermission(DEV_FALLBACK_ROLE, "ASSIGN_WORK_ORDER");
-  const canComplete = hasMatrixPermission(DEV_FALLBACK_ROLE, "COMPLETE_WORK_ORDER");
+export default function WorkOrderDetailPanel({
+  workOrderId,
+  serverOfficeQueueEnabled = false,
+}: Props) {
+  const { rollout, useServerQueue } = useOfficeQueueRollout(serverOfficeQueueEnabled);
+  const canUpdate =
+    !useServerQueue && hasMatrixPermission(DEV_FALLBACK_ROLE, "UPDATE_WORK_ORDER");
+  const canAssign =
+    !useServerQueue && hasMatrixPermission(DEV_FALLBACK_ROLE, "ASSIGN_WORK_ORDER");
+  const canComplete =
+    !useServerQueue && hasMatrixPermission(DEV_FALLBACK_ROLE, "COMPLETE_WORK_ORDER");
   const canViewInternal = hasMatrixPermission(
     DEV_FALLBACK_ROLE,
     "VIEW_WORK_ORDER_INTERNAL_NOTES",
@@ -61,26 +77,67 @@ export default function WorkOrderDetailPanel({ workOrderId }: Props) {
   const [tech, setTech] = useState("");
   const [schedStart, setSchedStart] = useState("");
   const [schedEnd, setSchedEnd] = useState("");
+  const [serverLoadState, setServerLoadState] = useState<OfficeQueueLoadState>("idle");
+  const [serverLoadError, setServerLoadError] = useState("");
+  const [serverOrder, setServerOrder] = useState<WorkOrder | null>(null);
+  const [serverTimeline, setServerTimeline] = useState<WorkOrderTimelineEvent[]>([]);
+  const [serverAudit, setServerAudit] = useState<WorkOrderAuditEntry[]>([]);
 
-  const order = useMemo(() => {
+  const loadServerDetail = useCallback(async () => {
+    startTransition(() => {
+      setServerLoadState("loading");
+      setServerLoadError("");
+    });
+    const result = await fetchServerOfficeWorkOrderDetail(workOrderId);
+    if (!result.ok) {
+      startTransition(() => {
+        setServerOrder(null);
+        setServerTimeline([]);
+        setServerAudit([]);
+        setServerLoadState("error");
+        setServerLoadError(result.error);
+      });
+      return;
+    }
+    startTransition(() => {
+      setServerOrder(result.workOrder);
+      setServerTimeline(result.timeline);
+      setServerAudit(result.audit);
+      setServerLoadState("ready");
+    });
+  }, [workOrderId]);
+
+  useEffect(() => {
+    if (!useServerQueue) return;
+    startTransition(() => {
+      void loadServerDetail();
+    });
+  }, [useServerQueue, loadServerDetail]);
+
+  const browserOrder = useMemo(() => {
     void tick;
     return getWorkOrder(workOrderId) ?? null;
   }, [workOrderId, tick]);
 
-  const timeline = useMemo(() => {
+  const browserTimeline = useMemo(() => {
     void tick;
-    return order ? listWorkOrderTimeline(order.id) : [];
-  }, [order, tick]);
+    return browserOrder ? listWorkOrderTimeline(browserOrder.id) : [];
+  }, [browserOrder, tick]);
 
-  const audit = useMemo(() => {
+  const browserAudit = useMemo(() => {
     void tick;
-    return order ? listWorkOrderAudit(order.id) : [];
-  }, [order, tick]);
+    return browserOrder ? listWorkOrderAudit(browserOrder.id) : [];
+  }, [browserOrder, tick]);
+
+  const order = useServerQueue ? serverOrder : browserOrder;
+  const timeline = useServerQueue ? serverTimeline : browserTimeline;
+  const audit = useServerQueue ? serverAudit : browserAudit;
 
   function refresh(msg?: string) {
     setError("");
     if (msg) setNotice(msg);
-    setTick((t) => t + 1);
+    if (useServerQueue) void loadServerDetail();
+    else setTick((t) => t + 1);
   }
 
   function applyResult(
@@ -95,11 +152,34 @@ export default function WorkOrderDetailPanel({ workOrderId }: Props) {
     refresh(successMsg);
   }
 
+  if (useServerQueue && serverLoadState === "loading") {
+    return (
+      <p role="status" className="py-10 text-center text-sm text-slate-400">
+        Loading durable server work order…
+      </p>
+    );
+  }
+
+  if (useServerQueue && serverLoadState === "error") {
+    return (
+      <MatrixEmptyState
+        title="Could not load server work order"
+        description={serverLoadError}
+        actionLabel="Retry"
+        onAction={() => void loadServerDetail()}
+      />
+    );
+  }
+
   if (!order) {
     return (
       <MatrixEmptyState
         title="Work order not found"
-        description="It may have been removed from the local session store."
+        description={
+          useServerQueue
+            ? "This server record may have been removed or you may not have access."
+            : "It may have been removed from the local session store."
+        }
       />
     );
   }
@@ -108,6 +188,7 @@ export default function WorkOrderDetailPanel({ workOrderId }: Props) {
 
   return (
     <div className="space-y-6">
+      <OfficeQueueRolloutBanner rollout={rollout} context="detail" />
       {notice && (
         <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/5 px-4 py-3 text-sm text-cyan-200">
           {notice}

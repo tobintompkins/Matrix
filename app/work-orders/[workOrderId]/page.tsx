@@ -2,6 +2,7 @@ import MatrixShell from "../../components/MatrixShell";
 import WorkflowPageShell from "../../components/WorkflowPageShell";
 import MatrixAuthGuard from "../../components/MatrixAuthGuard";
 import { MatrixButton, MatrixPageHeader } from "../../components/ui";
+import { isServerOfficeWorkOrdersEnabled } from "@/lib/work-orders/server-office-read";
 import WorkOrderDetailPanel from "../WorkOrderDetailPanel";
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
 
 export default async function WorkOrderDetailPage({ params }: Props) {
   const { workOrderId } = await params;
+  const serverOfficeQueueEnabled = isServerOfficeWorkOrdersEnabled();
 
   return (
     <MatrixShell title="Work Order" activePath="/work-orders">
@@ -25,7 +27,10 @@ export default async function WorkOrderDetailPage({ params }: Props) {
               </MatrixButton>
             }
           />
-          <WorkOrderDetailPanel workOrderId={workOrderId} />
+          <WorkOrderDetailPanel
+            workOrderId={workOrderId}
+            serverOfficeQueueEnabled={serverOfficeQueueEnabled}
+          />
         </MatrixAuthGuard>
       </WorkflowPageShell>
     </MatrixShell>

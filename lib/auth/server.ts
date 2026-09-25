@@ -104,6 +104,36 @@ export async function requireMatrixPermission(
   return authResult;
 }
 
+/** Require at least one of the listed Matrix permissions. */
+export async function requireMatrixPermissionAny(
+  permissions: MatrixPermission[],
+): Promise<
+  | {
+      ok: true;
+      userId: string;
+      profile: MatrixUserProfile;
+    }
+  | { ok: false; response: NextResponse }
+> {
+  const authResult = await requireMatrixAuth();
+  if (!authResult.ok) return authResult;
+
+  const allowed = permissions.some((permission) =>
+    hasMatrixPermission(authResult.profile.role, permission),
+  );
+  if (!allowed) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Forbidden", permissions },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return authResult;
+}
+
 export function getPermissionsForProfile(profile: MatrixUserProfile) {
   return getDefaultPermissionsForRole(profile.role);
 }

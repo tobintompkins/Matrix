@@ -2,9 +2,11 @@ import MatrixShell from "../components/MatrixShell";
 import WorkflowPageShell from "../components/WorkflowPageShell";
 import MatrixAuthGuard from "../components/MatrixAuthGuard";
 import { MatrixButton, MatrixPageHeader } from "../components/ui";
+import { isServerOfficeWorkOrdersEnabled } from "@/lib/work-orders/server-office-read";
 import WorkOrdersDashboardPanel from "./WorkOrdersDashboardPanel";
 
 export default function WorkOrdersPage() {
+  const serverOfficeQueueEnabled = isServerOfficeWorkOrdersEnabled();
   return (
     <MatrixShell title="Work Orders" activePath="/work-orders">
       <WorkflowPageShell current="service-ticket">
@@ -24,7 +26,7 @@ export default function WorkOrdersPage() {
               </div>
             }
           />
-          <WorkOrdersDashboardPanel />
+          <WorkOrdersDashboardPanel serverOfficeQueueEnabled={serverOfficeQueueEnabled} />
         </MatrixAuthGuard>
       </WorkflowPageShell>
     </MatrixShell>
