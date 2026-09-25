@@ -30,6 +30,11 @@ function serverFlagEnabled(): boolean {
   return (process.env.MATRIX_SERVER_FIELD_WORK_ORDERS ?? "").trim().toLowerCase() === "true";
 }
 
+function pilotWorkOrder(): string | null {
+  const value = process.env.MATRIX_SERVER_FIELD_PILOT_WORK_ORDER?.trim();
+  return value || null;
+}
+
 function asStatus(value: string | null): WorkOrderStatus {
   return STATUSES.has(value as WorkOrderStatus) ? (value as WorkOrderStatus) : "NEW";
 }
@@ -127,10 +132,27 @@ export function isServerFieldWorkOrderBridgeEnabled(): boolean {
   return serverFlagEnabled();
 }
 
+/** An optional one-work-order guard for the first live bridge test. */
+export function getServerFieldBridgeRollout() {
+  return { enabled: serverFlagEnabled(), pilotWorkOrder: pilotWorkOrder() };
+}
+
+function isPilotOrder(
+  order: { id: string; workOrderNumber: string; legacyWorkOrderId: string | null },
+  pilot: string,
+): boolean {
+  return [order.id, order.workOrderNumber, order.legacyWorkOrderId]
+    .filter((value): value is string => Boolean(value))
+    .some((value) => value === pilot);
+}
+
 export async function getFieldWorkOrder(idOrNumber: string): Promise<WorkOrder | undefined> {
   if (!serverFlagEnabled()) return getWorkOrder(idOrNumber);
   const order = await findServerOrder(idOrNumber);
-  return order ? mapServerWorkOrder(order) : undefined;
+  if (!order) return undefined;
+  const pilot = pilotWorkOrder();
+  if (pilot && !isPilotOrder(order, pilot)) return getWorkOrder(idOrNumber);
+  return mapServerWorkOrder(order);
 }
 
 export async function listFieldWorkOrders(): Promise<WorkOrder[]> {
@@ -139,5 +161,18 @@ export async function listFieldWorkOrders(): Promise<WorkOrder[]> {
     include: { partLines: true, files: true },
     orderBy: { updatedAt: "desc" },
   });
+  const pilot = pilotWorkOrder();
+  if (pilot) {
+    const serverPilot = orders.find((order) => isPilotOrder(order, pilot));
+    if (!serverPilot) return listWorkOrders();
+    const durablePilot = mapServerWorkOrder(serverPilot);
+    return listWorkOrders().map((order) =>
+      order.id === durablePilot.id ||
+      order.id === serverPilot.legacyWorkOrderId ||
+      order.workOrderNumber === durablePilot.workOrderNumber
+        ? durablePilot
+        : order,
+    );
+  }
   return orders.map(mapServerWorkOrder);
 }

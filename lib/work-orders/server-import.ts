@@ -94,6 +94,24 @@ export async function copyWorkOrdersToServer(
           customerSignature: order.customerSignature || null,
           copyCountAtStart: order.copyCountAtStart,
           copyCountAtEnd: order.copyCountAtEnd,
+          timelineEvents: {
+            create: {
+              type: "MIGRATED_TO_SERVER",
+              title: "Copied from browser work-order queue",
+              description: `Prototype work order ${order.workOrderNumber} copied to durable server storage.`,
+              actor: order.createdBy || "Matrix migration",
+              newValue: order.id,
+            },
+          },
+          auditEntries: {
+            create: {
+              field: "legacyWorkOrderId",
+              previousValue: null,
+              newValue: order.id,
+              actor: order.createdBy || "Matrix migration",
+              action: "COPIED_TO_SERVER",
+            },
+          },
           partLines: order.parts.length
             ? { create: order.parts.map((part) => ({
                 partNumber: part.partNumber,

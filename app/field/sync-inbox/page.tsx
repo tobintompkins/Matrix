@@ -26,6 +26,9 @@ type WorkOrderReadiness = {
   issues: Array<{ workOrderId: string; workOrderNumber: string; title: string; issues: string[] }>;
 };
 
+type BridgeRollout = { enabled: boolean; pilotWorkOrder: string | null };
+type PilotValidation = { selected: boolean; found: boolean; ready: boolean; workOrderNumber: string | null };
+
 export default function FieldSyncInboxPage() {
   const { role } = useFieldIdentity();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -34,6 +37,8 @@ export default function FieldSyncInboxPage() {
   const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
   const [readiness, setReadiness] = useState<WorkOrderReadiness | null>(null);
   const [readinessNotice, setReadinessNotice] = useState("");
+  const [rollout, setRollout] = useState<BridgeRollout | null>(null);
+  const [pilotValidation, setPilotValidation] = useState<PilotValidation | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -65,10 +70,28 @@ export default function FieldSyncInboxPage() {
     }
   }, []);
 
+  const loadBridgeStatus = useCallback(async () => {
+    try {
+      const response = await fetch("/api/field/bridge-rollout", { cache: "no-store" });
+      const body = await response.json() as { rollout?: BridgeRollout; readiness?: WorkOrderReadiness; pilot?: PilotValidation; error?: string };
+      if (!response.ok) throw new Error(body.error ?? "Could not load bridge status.");
+      startTransition(() => {
+        setRollout(body.rollout ?? null);
+        setPilotValidation(body.pilot ?? null);
+        if (body.readiness) setReadiness(body.readiness);
+        setReadinessNotice("");
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not load bridge status.";
+      startTransition(() => setReadinessNotice(message));
+    }
+  }, []);
+
   useEffect(() => {
     void load();
     void loadReadiness();
-  }, [load, loadReadiness]);
+    void loadBridgeStatus();
+  }, [load, loadReadiness, loadBridgeStatus]);
 
   if (!canViewOtherTechniciansField(role)) {
     return <FieldShell title="Sync Inbox"><p className="rounded-xl border border-rose-700/60 bg-rose-500/10 p-4 text-sm text-rose-100">You do not have access to the server sync inbox.</p></FieldShell>;
@@ -119,6 +142,11 @@ export default function FieldSyncInboxPage() {
           <p className="mt-1 text-xs text-slate-400">{readiness.readyWorkOrders} ready of {readiness.totalWorkOrders} server work orders · {readiness.blockingWorkOrders} need attention · Bridge {readiness.bridgeEnabled ? "enabled" : "off"}</p>
           {readiness.issues.length > 0 && <ul className="mt-3 space-y-2 text-xs text-slate-300">{readiness.issues.map((issue) => <li key={issue.workOrderId} className="rounded-lg bg-slate-950/60 p-2"><span className="font-semibold">{issue.workOrderNumber}</span> · {issue.title}<span className="block text-amber-200">{issue.issues.join(" · ")}</span></li>)}</ul>}
         </div>}
+      </section>
+      <section className="mb-5 rounded-xl border border-slate-700 bg-slate-900 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Field Bridge Pilot Status</h2><p className="mt-1 text-xs text-slate-400">Read-only rollout status. The bridge must stay limited to one verified job during the first pilot.</p></div><button type="button" onClick={() => void loadBridgeStatus()} className="min-h-10 rounded-lg border border-slate-600 px-3 text-xs font-semibold">Refresh status</button></div>
+        {rollout && <p className="mt-3 text-sm text-slate-300">Bridge: <span className="font-semibold">{rollout.enabled ? "enabled" : "off"}</span> · Pilot job: <span className="font-semibold">{rollout.pilotWorkOrder ?? "not selected"}</span></p>}
+        {pilotValidation && <p className={pilotValidation.ready ? "mt-2 text-sm text-emerald-200" : "mt-2 text-sm text-amber-200"}>{pilotValidation.ready ? `Pilot job ${pilotValidation.workOrderNumber} is ready for a controlled test.` : pilotValidation.selected ? "Pilot job needs a durable record, technician assignment, schedule, and status before testing." : "Select one verified pilot job before enabling the bridge."}</p>}
       </section>
       <ul className="space-y-3">
         {receipts.length === 0 && !notice && <li className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-400">No server receipts yet.</li>}

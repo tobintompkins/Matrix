@@ -35,6 +35,7 @@ export default function WorkOrdersDashboardPanel() {
   const [tick, setTick] = useState(0);
   const [copying, setCopying] = useState(false);
   const [copyNotice, setCopyNotice] = useState("");
+  const [copyCheckNotice, setCopyCheckNotice] = useState("");
 
   const orders = useMemo(() => {
     void tick;
@@ -115,6 +116,26 @@ export default function WorkOrdersDashboardPanel() {
     }
   }
 
+  async function checkServerCopy() {
+    setCopyCheckNotice("Checking durable server work orders…");
+    try {
+      const response = await fetch("/api/work-orders/server-copy-status", { cache: "no-store" });
+      const body = await response.json() as {
+        workOrders?: Array<{ id: string; workOrderNumber: string; legacyWorkOrderId: string | null }>;
+        error?: string;
+      };
+      if (!response.ok) throw new Error(body.error ?? "Could not check server work orders.");
+      const server = body.workOrders ?? [];
+      const serverIds = new Set(server.flatMap((order) => [order.id, order.legacyWorkOrderId ?? "", order.workOrderNumber]));
+      const missing = orders.filter((order) => !serverIds.has(order.id) && !serverIds.has(order.workOrderNumber));
+      setCopyCheckNotice(missing.length
+        ? `${server.length} server records found. ${missing.length} browser work order(s) still need copying: ${missing.slice(0, 5).map((order) => order.workOrderNumber).join(", ")}${missing.length > 5 ? "…" : ""}`
+        : `Copy check passed: all ${orders.length} browser work order(s) have matching server records.`);
+    } catch (error) {
+      setCopyCheckNotice(error instanceof Error ? error.message : "Could not check server work orders.");
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -168,9 +189,13 @@ export default function WorkOrdersDashboardPanel() {
           <MatrixButton variant="secondary" size="sm" disabled={copying || orders.length === 0} onClick={() => void copyQueueToServer()}>
             {copying ? "Copying…" : `Copy ${orders.length} Work Orders to Server`}
           </MatrixButton>
+          <MatrixButton variant="secondary" size="sm" onClick={() => void checkServerCopy()}>
+            Check Server Copy
+          </MatrixButton>
           <span className="text-xs text-slate-400">Use once before the controlled Field bridge test.</span>
         </div>
         {copyNotice && <p role="status" className="mt-3 text-sm text-cyan-200">{copyNotice}</p>}
+        {copyCheckNotice && <p role="status" className="mt-2 text-sm text-slate-300">{copyCheckNotice}</p>}
       </MatrixCard>
 
       <MatrixCard

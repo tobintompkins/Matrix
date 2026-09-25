@@ -425,6 +425,12 @@ Managers can use **Field → Sync Inbox → Server Work-Order Readiness** to run
 
 Managers can use **Work Orders → Server Work-Order Copy** to copy the current prototype queue to the durable server database. The action requires confirmation. It only creates missing work-order numbers; it never overwrites server records or deletes browser records. Run the readiness preflight after the copy, resolve any reported gaps, and only then perform a limited bridge test.
 
+Use **Check Server Copy** to compare the browser queue with durable records by server ID, legacy browser ID, and work-order number. The check is read-only. Resolve every missing record before enabling a controlled Field bridge pilot.
+
+### One-work-order bridge pilot
+
+For the first live test, set both `MATRIX_SERVER_FIELD_WORK_ORDERS=true` and `MATRIX_SERVER_FIELD_PILOT_WORK_ORDER` to the server ID, legacy browser ID, or work-order number of one verified job. Only that job uses the durable server record; all other Field work orders continue using the existing browser-backed workflow. Remove the pilot variable and set the bridge flag to false to return every job to the existing workflow immediately.
+
 ### Legacy ID continuity
 
 Copied work orders retain their original browser work-order ID in `legacyWorkOrderId`. Field packages, sessions, and sync receipts that were created before the server copy can therefore resolve to the matching durable record. The legacy ID is unique and read-only after the copy; it is a migration bridge, not a replacement for the server record ID.
