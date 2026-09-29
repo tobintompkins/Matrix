@@ -19,6 +19,14 @@ test("next job excludes other technicians, blocked, closed, drafts, and future w
     job("future", {scheduledStart: new Date(2026, 8, 12, 9).toISOString()}),
     job("secondary", {assignedTechnician: "Sam", secondaryTechnician: "Alex"})];
   assert.equal(nextMobileWork(jobs, "Alex", now)?.id, "secondary");
+  assert.equal(
+    nextMobileWork(
+      [job("by-id", { assignedTechnician: "Someone Else", assignedTechnicianId: "user_alex" })],
+      { userId: "user_alex", technicianName: "Alex" },
+      now,
+    )?.id,
+    "by-id",
+  );
   assert.equal(nextMobileWork(jobs, "", now), undefined);
 });
 test("critical precedes overdue and overdue precedes today's work", () => {

@@ -1,23 +1,29 @@
 import { canViewOtherTechniciansField } from "@/lib/auth/field-permissions";
 import type { MatrixUserProfile } from "@/lib/auth/types";
-import type { WorkOrder } from "@/lib/work-orders/types";
+import {
+  isTechnicianAssignedToWorkOrder,
+  type FieldWorkOrderAssignment,
+} from "@/lib/work-orders/field-technician-assignment";
 
 /** APIs require a configured Clerk role; the local fallback is UI-only. */
 export function hasConfiguredFieldApiIdentity(profile: MatrixUserProfile): boolean {
   return !profile.usingDevFallbackRole;
 }
 
-/** Dispatcher assignments are names until the server repository uses technician IDs. */
+/** Technicians may access primary/secondary assignments via Clerk id or legacy name. */
 export function canAccessFieldWorkOrder(
   profile: MatrixUserProfile,
-  workOrder: Pick<WorkOrder, "assignedTechnician" | "secondaryTechnician">,
+  workOrder: FieldWorkOrderAssignment,
 ): boolean {
   if (canViewOtherTechniciansField(profile.role)) return true;
-  const technicianName = (profile.technicianName ?? profile.displayName ?? "")
-    .trim().toLocaleLowerCase();
-  if (!technicianName) return false;
-  return [workOrder.assignedTechnician, workOrder.secondaryTechnician].some(
-    (assigned) => assigned.trim().toLocaleLowerCase() === technicianName,
+  return isTechnicianAssignedToWorkOrder(
+    {
+      userId: profile.userId,
+      technicianId: profile.technicianId,
+      technicianName: profile.technicianName,
+      displayName: profile.displayName,
+    },
+    workOrder,
   );
 }
 

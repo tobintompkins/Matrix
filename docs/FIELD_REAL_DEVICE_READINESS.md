@@ -2,6 +2,8 @@
 
 Run this checklist on a signed-in Field account before production use.
 
+Managers can record pass/fail results in **Field → Sync Inbox → Field Device Verification** (Patch 51B.2.12 local draft). Optionally **Submit finalized record** to store a durable manager-visible release record (Patch 51B.2.13). The **Field Release Readiness** card (Patch 51B.2.14) summarizes the latest submission; managers record audited **approve / hold / revoke** decisions (Patch 51B.2.15). See [PATCH_51B2_12_FIELD_DEVICE_VERIFICATION.md](./PATCH_51B2_12_FIELD_DEVICE_VERIFICATION.md), [PATCH_51B2_13_FIELD_DEVICE_VERIFICATION_SERVER.md](./PATCH_51B2_13_FIELD_DEVICE_VERIFICATION_SERVER.md), [PATCH_51B2_14_FIELD_RELEASE_READINESS.md](./PATCH_51B2_14_FIELD_RELEASE_READINESS.md), and [PATCH_51B2_15_FIELD_RELEASE_DECISION.md](./PATCH_51B2_15_FIELD_RELEASE_DECISION.md).
+
 ## Offline work
 
 - Download an assigned work order.

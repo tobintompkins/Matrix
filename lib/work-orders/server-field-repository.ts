@@ -91,6 +91,8 @@ export function mapServerWorkOrder(order: NonNullable<ServerOrder>): WorkOrder {
     source: asSource(order.source),
     assignedTechnician: order.assignedTechnician ?? "",
     secondaryTechnician: order.secondaryTechnician ?? "",
+    assignedTechnicianId: order.assignedTechnicianId ?? "",
+    secondaryTechnicianId: order.secondaryTechnicianId ?? "",
     requestedBy: order.requestedBy ?? "",
     createdBy: order.createdBy ?? "Matrix",
     scheduledStart: order.scheduledStart?.toISOString() ?? null,

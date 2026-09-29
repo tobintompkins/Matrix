@@ -9,6 +9,17 @@ import {
   type OfficeQueueLoadState,
 } from "@/lib/work-orders/office-queue-client";
 import {
+  addServerOfficeWorkOrderAttachment,
+  addServerOfficeWorkOrderPart,
+  appendServerOfficeWorkOrderNote,
+  patchServerOfficeWorkOrderAssignment,
+  patchServerOfficeWorkOrderLabor,
+  patchServerOfficeWorkOrderSchedule,
+  patchServerOfficeWorkOrderStatus,
+  runServerOfficeQuickAction,
+  type OfficeServerWriteResult,
+} from "@/lib/work-orders/office-server-mutations";
+import {
   MatrixButton,
   MatrixCard,
   MatrixEmptyState,
@@ -53,12 +64,17 @@ export default function WorkOrderDetailPanel({
   serverOfficeQueueEnabled = false,
 }: Props) {
   const { rollout, useServerQueue } = useOfficeQueueRollout(serverOfficeQueueEnabled);
-  const canUpdate =
-    !useServerQueue && hasMatrixPermission(DEV_FALLBACK_ROLE, "UPDATE_WORK_ORDER");
-  const canAssign =
-    !useServerQueue && hasMatrixPermission(DEV_FALLBACK_ROLE, "ASSIGN_WORK_ORDER");
-  const canComplete =
-    !useServerQueue && hasMatrixPermission(DEV_FALLBACK_ROLE, "COMPLETE_WORK_ORDER");
+  const canManageServer = hasMatrixPermission(DEV_FALLBACK_ROLE, "MANAGE_WORK_ORDERS");
+  const canUpdate = useServerQueue
+    ? canManageServer
+    : hasMatrixPermission(DEV_FALLBACK_ROLE, "UPDATE_WORK_ORDER");
+  const canAssign = useServerQueue
+    ? canManageServer
+    : hasMatrixPermission(DEV_FALLBACK_ROLE, "ASSIGN_WORK_ORDER");
+  const canComplete = useServerQueue
+    ? canManageServer
+    : hasMatrixPermission(DEV_FALLBACK_ROLE, "COMPLETE_WORK_ORDER");
+  const canEditBrowserOnlyFields = canUpdate && !useServerQueue;
   const canViewInternal = hasMatrixPermission(
     DEV_FALLBACK_ROLE,
     "VIEW_WORK_ORDER_INTERNAL_NOTES",
@@ -82,6 +98,7 @@ export default function WorkOrderDetailPanel({
   const [serverOrder, setServerOrder] = useState<WorkOrder | null>(null);
   const [serverTimeline, setServerTimeline] = useState<WorkOrderTimelineEvent[]>([]);
   const [serverAudit, setServerAudit] = useState<WorkOrderAuditEntry[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const loadServerDetail = useCallback(async () => {
     startTransition(() => {
@@ -152,6 +169,27 @@ export default function WorkOrderDetailPanel({
     refresh(successMsg);
   }
 
+  async function mutateServer(
+    action: (current: WorkOrder) => Promise<OfficeServerWriteResult>,
+    successMsg: string,
+  ) {
+    if (!order) return;
+    setSaving(true);
+    setError("");
+    try {
+      const result = await action(order);
+      if (!result.ok) {
+        setNotice("");
+        setError(result.error);
+        return;
+      }
+      setNotice(successMsg);
+      await loadServerDetail();
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (useServerQueue && serverLoadState === "loading") {
     return (
       <p role="status" className="py-10 text-center text-sm text-slate-400">
@@ -199,6 +237,11 @@ export default function WorkOrderDetailPanel({
           {error}
         </div>
       )}
+      {useServerQueue && saving && (
+        <p role="status" className="text-sm text-cyan-200">
+          Saving to durable server queue…
+        </p>
+      )}
 
       <MatrixCard
         title={order.workOrderNumber}
@@ -222,15 +265,18 @@ export default function WorkOrderDetailPanel({
             <MatrixButton
               size="sm"
               variant="primary"
+              disabled={saving}
               onClick={() =>
-                applyResult(
-                  runWorkOrderQuickAction({
-                    workOrderId: order.id,
-                    action: "start",
-                    actor: "Matrix User",
-                  }),
-                  "Work started.",
-                )
+                useServerQueue
+                  ? void mutateServer((o) => runServerOfficeQuickAction(o, "start"), "Work started.")
+                  : applyResult(
+                      runWorkOrderQuickAction({
+                        workOrderId: order.id,
+                        action: "start",
+                        actor: "Matrix User",
+                      }),
+                      "Work started.",
+                    )
               }
             >
               Start Work
@@ -238,15 +284,18 @@ export default function WorkOrderDetailPanel({
             <MatrixButton
               size="sm"
               variant="secondary"
+              disabled={saving}
               onClick={() =>
-                applyResult(
-                  runWorkOrderQuickAction({
-                    workOrderId: order.id,
-                    action: "pause",
-                    actor: "Matrix User",
-                  }),
-                  "Work paused.",
-                )
+                useServerQueue
+                  ? void mutateServer((o) => runServerOfficeQuickAction(o, "pause"), "Work paused.")
+                  : applyResult(
+                      runWorkOrderQuickAction({
+                        workOrderId: order.id,
+                        action: "pause",
+                        actor: "Matrix User",
+                      }),
+                      "Work paused.",
+                    )
               }
             >
               Pause Work
@@ -254,15 +303,18 @@ export default function WorkOrderDetailPanel({
             <MatrixButton
               size="sm"
               variant="secondary"
+              disabled={saving}
               onClick={() =>
-                applyResult(
-                  runWorkOrderQuickAction({
-                    workOrderId: order.id,
-                    action: "resume",
-                    actor: "Matrix User",
-                  }),
-                  "Work resumed.",
-                )
+                useServerQueue
+                  ? void mutateServer((o) => runServerOfficeQuickAction(o, "resume"), "Work resumed.")
+                  : applyResult(
+                      runWorkOrderQuickAction({
+                        workOrderId: order.id,
+                        action: "resume",
+                        actor: "Matrix User",
+                      }),
+                      "Work resumed.",
+                    )
               }
             >
               Resume Work
@@ -271,15 +323,21 @@ export default function WorkOrderDetailPanel({
               <MatrixButton
                 size="sm"
                 variant="success"
+                disabled={saving}
                 onClick={() =>
-                  applyResult(
-                    runWorkOrderQuickAction({
-                      workOrderId: order.id,
-                      action: "complete",
-                      actor: "Matrix User",
-                    }),
-                    "Work completed.",
-                  )
+                  useServerQueue
+                    ? void mutateServer(
+                        (o) => runServerOfficeQuickAction(o, "complete"),
+                        "Work completed.",
+                      )
+                    : applyResult(
+                        runWorkOrderQuickAction({
+                          workOrderId: order.id,
+                          action: "complete",
+                          actor: "Matrix User",
+                        }),
+                        "Work completed.",
+                      )
                 }
               >
                 Complete Work
@@ -348,15 +406,24 @@ export default function WorkOrderDetailPanel({
               <MatrixButton
                 size="sm"
                 variant="secondary"
+                disabled={saving}
                 onClick={() =>
-                  applyResult(
-                    assignWorkOrder({
-                      workOrderId: order.id,
-                      technician: tech || "Toby Tompkins",
-                      actor: "Matrix Manager",
-                    }),
-                    "Technician assigned.",
-                  )
+                  useServerQueue
+                    ? void mutateServer(
+                        (o) =>
+                          patchServerOfficeWorkOrderAssignment(o, {
+                            assignedTechnician: tech || "Toby Tompkins",
+                          }),
+                        "Technician assigned.",
+                      )
+                    : applyResult(
+                        assignWorkOrder({
+                          workOrderId: order.id,
+                          technician: tech || "Toby Tompkins",
+                          actor: "Matrix Manager",
+                        }),
+                        "Technician assigned.",
+                      )
                 }
               >
                 Assign / Reassign
@@ -378,20 +445,32 @@ export default function WorkOrderDetailPanel({
               <MatrixButton
                 size="sm"
                 variant="secondary"
+                disabled={saving}
                 onClick={() =>
-                  applyResult(
-                    updateWorkOrderSchedule({
-                      workOrderId: order.id,
-                      scheduledStart: schedStart
-                        ? new Date(schedStart).toISOString()
-                        : null,
-                      scheduledEnd: schedEnd
-                        ? new Date(schedEnd).toISOString()
-                        : null,
-                      actor: "Matrix Manager",
-                    }),
-                    "Schedule updated.",
-                  )
+                  useServerQueue
+                    ? void mutateServer(
+                        (o) =>
+                          patchServerOfficeWorkOrderSchedule(o, {
+                            scheduledStart: schedStart
+                              ? new Date(schedStart).toISOString()
+                              : null,
+                            scheduledEnd: schedEnd ? new Date(schedEnd).toISOString() : null,
+                          }),
+                        "Schedule updated.",
+                      )
+                    : applyResult(
+                        updateWorkOrderSchedule({
+                          workOrderId: order.id,
+                          scheduledStart: schedStart
+                            ? new Date(schedStart).toISOString()
+                            : null,
+                          scheduledEnd: schedEnd
+                            ? new Date(schedEnd).toISOString()
+                            : null,
+                          actor: "Matrix Manager",
+                        }),
+                        "Schedule updated.",
+                      )
                 }
               >
                 Edit Schedule
@@ -421,7 +500,7 @@ export default function WorkOrderDetailPanel({
               }
             />
           </dl>
-          {canUpdate && (
+          {canEditBrowserOnlyFields && (
             <div className="mt-3 flex flex-wrap gap-2">
               <input
                 type="number"
@@ -467,6 +546,11 @@ export default function WorkOrderDetailPanel({
               </MatrixButton>
             </div>
           )}
+          {useServerQueue && (
+            <p className="mt-2 text-xs text-slate-500">
+              Copy count edits remain on the browser queue until a later server migration step.
+            </p>
+          )}
         </MatrixCard>
 
         <MatrixCard title="Labor / Travel">
@@ -491,15 +575,24 @@ export default function WorkOrderDetailPanel({
               <MatrixButton
                 size="sm"
                 variant="secondary"
+                disabled={saving}
                 onClick={() =>
-                  applyResult(
-                    updateWorkOrderLabor({
-                      workOrderId: order.id,
-                      actualHours: Number(hours),
-                      actor: "Matrix User",
-                    }),
-                    "Labor updated.",
-                  )
+                  useServerQueue
+                    ? void mutateServer(
+                        (o) =>
+                          patchServerOfficeWorkOrderLabor(o, {
+                            actualHours: Number(hours),
+                          }),
+                        "Labor updated.",
+                      )
+                    : applyResult(
+                        updateWorkOrderLabor({
+                          workOrderId: order.id,
+                          actualHours: Number(hours),
+                          actor: "Matrix User",
+                        }),
+                        "Labor updated.",
+                      )
                 }
               >
                 Update Labor
@@ -539,7 +632,23 @@ export default function WorkOrderDetailPanel({
               <MatrixButton
                 size="sm"
                 variant="secondary"
+                disabled={saving}
                 onClick={() => {
+                  if (useServerQueue) {
+                    void mutateServer(
+                      (o) =>
+                        addServerOfficeWorkOrderPart(o, {
+                          partNumber,
+                          description: partDesc,
+                          quantity: 1,
+                        }),
+                      "Part added.",
+                    ).then(() => {
+                      setPartNumber("");
+                      setPartDesc("");
+                    });
+                    return;
+                  }
                   applyResult(
                     addWorkOrderPart({
                       workOrderId: order.id,
@@ -583,16 +692,25 @@ export default function WorkOrderDetailPanel({
               <MatrixButton
                 size="sm"
                 variant="secondary"
+                disabled={saving}
                 onClick={() => {
                   const isPhoto = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
+                  const kind = isPhoto
+                    ? "PHOTO"
+                    : fileName.toLowerCase().endsWith(".pdf")
+                      ? "PDF"
+                      : "SERVICE_DOCUMENT";
+                  if (useServerQueue) {
+                    void mutateServer(
+                      (o) => addServerOfficeWorkOrderAttachment(o, { fileName, kind }),
+                      "Attachment metadata saved.",
+                    ).then(() => setFileName(""));
+                    return;
+                  }
                   applyResult(
                     addWorkOrderAttachment({
                       workOrderId: order.id,
-                      kind: isPhoto
-                        ? "PHOTO"
-                        : fileName.toLowerCase().endsWith(".pdf")
-                          ? "PDF"
-                          : "SERVICE_DOCUMENT",
+                      kind,
                       fileName,
                       actor: "Matrix User",
                     }),
@@ -634,7 +752,15 @@ export default function WorkOrderDetailPanel({
                 <MatrixButton
                   size="sm"
                   variant="secondary"
+                  disabled={saving}
                   onClick={() => {
+                    if (useServerQueue) {
+                      void mutateServer(
+                        (o) => appendServerOfficeWorkOrderNote(o, { note }),
+                        "Note added.",
+                      ).then(() => setNote(""));
+                      return;
+                    }
                     applyResult(
                       addWorkOrderNote({
                         workOrderId: order.id,
@@ -652,7 +778,15 @@ export default function WorkOrderDetailPanel({
                   <MatrixButton
                     size="sm"
                     variant="secondary"
+                    disabled={saving}
                     onClick={() => {
+                      if (useServerQueue) {
+                        void mutateServer(
+                          (o) => appendServerOfficeWorkOrderNote(o, { note, internal: true }),
+                          "Internal note added.",
+                        ).then(() => setNote(""));
+                        return;
+                      }
                       applyResult(
                         addWorkOrderNote({
                           workOrderId: order.id,
@@ -679,7 +813,7 @@ export default function WorkOrderDetailPanel({
               ? `${order.customerSignature} · ${order.signatureCapturedAt?.slice(0, 19)}`
               : "No signature captured"}
           </p>
-          {canUpdate && (
+          {canEditBrowserOnlyFields && (
             <div className="mt-3 flex flex-wrap gap-2">
               <input
                 className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
@@ -706,6 +840,11 @@ export default function WorkOrderDetailPanel({
               </MatrixButton>
             </div>
           )}
+          {useServerQueue && (
+            <p className="mt-2 text-xs text-slate-500">
+              Signature capture remains on the browser queue until a later server migration step.
+            </p>
+          )}
         </MatrixCard>
       </div>
 
@@ -717,15 +856,21 @@ export default function WorkOrderDetailPanel({
                 key={status}
                 size="sm"
                 variant="secondary"
+                disabled={saving}
                 onClick={() =>
-                  applyResult(
-                    updateWorkOrderStatus({
-                      workOrderId: order.id,
-                      status: status as WorkOrderStatus,
-                      actor: "Matrix User",
-                    }),
-                    `Status → ${getWorkOrderStatusLabel(status)}`,
-                  )
+                  useServerQueue
+                    ? void mutateServer(
+                        (o) => patchServerOfficeWorkOrderStatus(o, status as WorkOrderStatus),
+                        `Status → ${getWorkOrderStatusLabel(status)}`,
+                      )
+                    : applyResult(
+                        updateWorkOrderStatus({
+                          workOrderId: order.id,
+                          status: status as WorkOrderStatus,
+                          actor: "Matrix User",
+                        }),
+                        `Status → ${getWorkOrderStatusLabel(status)}`,
+                      )
                 }
               >
                 {getWorkOrderStatusLabel(status)}

@@ -10,7 +10,7 @@
 
 ## Clerk setup required before live API use
 
-Set each user's public metadata with a configured `matrixRole`. For technicians, also set `technicianName` exactly as it appears in the work-order assignment fields. The current prototype matches names because work orders do not yet store stable technician IDs.
+Set each user's public metadata with a configured `matrixRole`. For technicians, set `technicianName` when it differs from the Clerk display name. Server work orders may also store `assignedTechnicianId` / `secondaryTechnicianId` (Clerk user ids). Field APIs match ids first and fall back to legacy name fields during migration (see [PATCH_51B2_11_DURABLE_TECHNICIAN_ASSIGNMENTS.md](./PATCH_51B2_11_DURABLE_TECHNICIAN_ASSIGNMENTS.md)).
 
 ## Current boundary
 

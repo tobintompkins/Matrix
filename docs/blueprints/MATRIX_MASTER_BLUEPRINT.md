@@ -193,6 +193,40 @@ Digital twin for each physical machine (`Machines` / prototype `Printer`):
 
 ---
 
+## RISO Parts Network Integration Roadmap
+
+Matrix remains the service-operations system of record. RISO Parts Network is a separate, connected application that will manage RISO-owned inventory held at HQ, Warranty, Training, and customer account lockers such as SFX/MPX. Customer lockers are locations assigned to an account; the inventory owner remains RISO.
+
+### Matrix responsibilities
+
+- Accounts, customer sites, machines, make/model, serial number, technicians, and work orders
+- Confirmed part-use records in the work-order workflow
+- A small work-order inventory-status panel showing availability, reservation, request, shipment, backorder, and receipt status
+- Shared employee identity and Matrix-side permission checks
+
+### Connection requirements
+
+1. Preserve stable IDs for accounts, sites, machines, work orders, users, and parts. The integration must use IDs rather than names as its source of truth.
+2. Publish a durable, retryable `part used` event when a technician confirms a part on a work order. Include the work-order ID, account ID, machine ID and serial number, part number/ID, quantity, selected stock location, and acting user.
+3. Provide an availability lookup so a work order can request current stock from RISO Parts Network for the selected account locker, HQ, Warranty, or another authorized location.
+4. Link a Matrix work order to a RISO Parts Network replenishment request, UPS shipment, or backorder without duplicating inventory balances inside Matrix.
+5. Record every outbound event, response, failure, and retry in an integration audit log. A temporary RISO Parts Network outage must not lose a confirmed part-use record.
+6. Use shared user identities, while RISO Parts Network remains responsible for account and locker-level inventory authorization.
+
+### Delivery sequence
+
+1. **Integration contract:** define versioned APIs, shared IDs, authentication, event idempotency, and error/retry behavior.
+2. **Read path:** show authorized inventory availability and shortage status on a Matrix work order.
+3. **Part-use path:** send confirmed Matrix work-order part usage to RISO Parts Network and show the accepted, pending, or failed state without blocking field work.
+4. **Request and shipment path:** link work orders to replenishment requests, UPS shipments, delivery confirmation, and backorders.
+5. **Reconciliation and operations:** provide integration audit views, retry tooling, and a comparison report for part-use events and inventory movements.
+
+### Explicit boundary
+
+Do not expand Matrix into the full multi-account inventory application. RISO Parts Network owns stock balances, receiving, transfers, audits, PM-kit reservations, ordering, shipments, backorders, and inventory-location permissions. Matrix continues to retain its existing inventory functionality during transition, but new enterprise locker-network functionality is built in RISO Parts Network.
+
+---
+
 ## Parts Ordering
 
 - Internal part requests linked to tickets and machines
@@ -352,11 +386,11 @@ The Matrix landing experience is presented to users as the **Service Hub**.
 - **51B.1** — Implemented (Customer Portal ↔ Service Hub integration; shared context, typed customer status, customer Assist mode, Hub visibility markers)
 - **51C.1** — Implemented (Enterprise Intelligence aggregation on ECC; org-health bridge, parts/tech/customer analytics, Assist insights, report builder)
 - **51C.2** — Implemented (Predictive Business Analytics center on ECC; demand/PM/parts/capacity forecasts, scenarios, accuracy, data quality)
-- **51B.2** — In progress: Mobile Technician Experience (51B.2.1–51B.2.10 applied: work queue, access, identity, isolated offline storage, API authorization, sign-out clearing, legacy-store retirement, durable receipts, manager inbox, and server note processing). Remaining gates: controlled processing endpoint, remaining receipt types, technician-ID migration, and real-device verification. Not production-ready.
+- **51B.2** — In progress: Mobile Technician Experience (51B.2.1–51B.2.15 applied through device verification, server finalized records, Field Release Readiness dashboard, and audited release decisions; see `docs/PATCH_51B2_15_FIELD_RELEASE_DECISION.md`). Remaining gates: controlled processing endpoint, remaining receipt types, assignment id backfill in production data, and completed real-device runs filed from the checklist. Not production-ready.
 
 ### 51B.2 Mobile Technician Experience — current delivery status
 
-**Completed:** simplified Field UI; Clerk-based Field access and identity; isolated per-user offline storage; sign-out cache clearing; legacy shared-cache retirement; secure server receipts; Manager Sync Inbox; and controlled server processing for notes, status changes, completions, parts, photos, and attachments.
+**Completed:** simplified Field UI; Clerk-based Field access and identity; isolated per-user offline storage; sign-out cache clearing; legacy shared-cache retirement; secure server receipts; Manager Sync Inbox; controlled server processing for notes, status changes, completions, parts, photos, and attachments; and office Work Orders UI wired to durable server reads/writes behind `MATRIX_SERVER_OFFICE_WORK_ORDERS` plus rollout guard (see `docs/blueprints/WORK_ORDERS_SERVER_MIGRATION.md` step 13).
 
 **Remaining before production release:** replace browser sessionStorage work-order records with server-backed work orders; run the Field real-device readiness checklist; confirm retry, conflict, photo, signature, and completion behavior; and record the results in this blueprint.
 

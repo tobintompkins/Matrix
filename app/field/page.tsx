@@ -42,16 +42,17 @@ export default function FieldHomePage() {
     () =>
       buildFieldHomeMetrics({
         technicianName: TECH,
+        technicianUserId: TECH_ID,
         workOrders: orders,
         connectivity: status,
         unsyncedChanges: unsynced,
       }),
-    [orders, status, unsynced, TECH],
+    [orders, status, unsynced, TECH, TECH_ID],
   );
 
   const nextJob = useMemo(() => {
-    return nextMobileWork(orders, TECH);
-  }, [orders, TECH]);
+    return nextMobileWork(orders, { userId: TECH_ID, technicianName: TECH });
+  }, [orders, TECH, TECH_ID]);
 
   async function syncNow() {
     if (syncing) return;

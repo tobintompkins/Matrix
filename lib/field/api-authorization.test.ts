@@ -9,6 +9,32 @@ describe("Field API authorization", () => {
     assert.equal(canAccessFieldWorkOrder(fieldTech, { assignedTechnician: "Toby Tompkins", secondaryTechnician: "Alex Rivera" }), true);
     assert.equal(canAccessFieldWorkOrder(fieldTech, { assignedTechnician: "Alex Rivera", secondaryTechnician: "Sam Ortiz" }), false);
   });
+  it("prefers durable technician ids with name fallback during migration", () => {
+    assert.equal(
+      canAccessFieldWorkOrder(
+        { ...fieldTech, userId: "user_toby" },
+        {
+          assignedTechnician: "Legacy Name",
+          secondaryTechnician: "",
+          assignedTechnicianId: "user_toby",
+          secondaryTechnicianId: null,
+        },
+      ),
+      true,
+    );
+    assert.equal(
+      canAccessFieldWorkOrder(
+        { ...fieldTech, userId: "user_other" },
+        {
+          assignedTechnician: "Toby Tompkins",
+          secondaryTechnician: "",
+          assignedTechnicianId: "user_stale",
+          secondaryTechnicianId: null,
+        },
+      ),
+      true,
+    );
+  });
   it("allows dispatch roles to access every technician's work", () => {
     assert.equal(canAccessFieldWorkOrder({ ...fieldTech, role: "SERVICE_MANAGER" }, { assignedTechnician: "Alex Rivera", secondaryTechnician: "" }), true);
   });

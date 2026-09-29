@@ -1,6 +1,20 @@
 import type { WorkOrder } from "../work-orders/types";
+import {
+  isTechnicianAssignedToWorkOrder,
+  type FieldTechnicianIdentity,
+} from "../work-orders/field-technician-assignment";
 
-type QueueOrder = Pick<WorkOrder, "id" | "assignedTechnician" | "secondaryTechnician" | "status" | "priority" | "scheduledStart">;
+type QueueOrder = Pick<
+  WorkOrder,
+  | "id"
+  | "assignedTechnician"
+  | "secondaryTechnician"
+  | "assignedTechnicianId"
+  | "secondaryTechnicianId"
+  | "status"
+  | "priority"
+  | "scheduledStart"
+>;
 const closed = new Set(["DRAFT", "COMPLETED", "CANCELLED", "CLOSED"]);
 const waiting = new Set(["WAITING_FOR_PARTS", "WAITING_FOR_CUSTOMER", "ON_HOLD"]);
 const active = new Set(["TRAVELING", "ON_SITE"]);
@@ -27,13 +41,37 @@ export function prioritizeMobileWork<T extends QueueOrder>(orders: readonly T[],
   );
 }
 
+function resolveMobileIdentity(
+  technicianOrIdentity: string | FieldTechnicianIdentity,
+): FieldTechnicianIdentity {
+  if (typeof technicianOrIdentity === "string") {
+    return { userId: "", technicianName: technicianOrIdentity };
+  }
+  return technicianOrIdentity;
+}
+
 /** A blank identity must never turn "my next job" into everybody's queue. */
-export function nextMobileWork<T extends QueueOrder>(orders: readonly T[], technician: string, now = new Date()): T | undefined {
-  if (!technician.trim()) return undefined;
+export function nextMobileWork<T extends QueueOrder>(
+  orders: readonly T[],
+  technicianOrIdentity: string | FieldTechnicianIdentity,
+  now = new Date(),
+): T | undefined {
+  const identity = resolveMobileIdentity(technicianOrIdentity);
+  const hasIdentity =
+    identity.userId.trim() ||
+    identity.technicianId?.trim() ||
+    identity.technicianName?.trim() ||
+    identity.displayName?.trim();
+  if (!hasIdentity) return undefined;
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
-  return prioritizeMobileWork(orders.filter(order =>
-    (order.assignedTechnician === technician || order.secondaryTechnician === technician) &&
-    !closed.has(order.status) && !waiting.has(order.status) &&
-    (active.has(order.status) || !order.scheduledStart || scheduled(order) < tomorrow)
-  ), now)[0];
+  return prioritizeMobileWork(
+    orders.filter(
+      (order) =>
+        isTechnicianAssignedToWorkOrder(identity, order) &&
+        !closed.has(order.status) &&
+        !waiting.has(order.status) &&
+        (active.has(order.status) || !order.scheduledStart || scheduled(order) < tomorrow),
+    ),
+    now,
+  )[0];
 }

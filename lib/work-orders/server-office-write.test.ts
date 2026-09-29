@@ -14,6 +14,10 @@ describe("server office work-order writes", () => {
       resolveInitialServerWorkOrderStatus({ assignedTechnician: "Alex" }),
       "ASSIGNED",
     );
+    assert.equal(
+      resolveInitialServerWorkOrderStatus({ assignedTechnicianId: "user_alex" }),
+      "ASSIGNED",
+    );
     assert.equal(resolveInitialServerWorkOrderStatus({}), "NEW");
   });
 

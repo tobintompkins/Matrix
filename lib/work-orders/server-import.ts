@@ -75,6 +75,8 @@ export async function copyWorkOrdersToServer(
           source: order.source || null,
           assignedTechnician: order.assignedTechnician || null,
           secondaryTechnician: order.secondaryTechnician || null,
+          assignedTechnicianId: order.assignedTechnicianId?.trim() || null,
+          secondaryTechnicianId: order.secondaryTechnicianId?.trim() || null,
           requestedBy: order.requestedBy || null,
           createdBy: order.createdBy || null,
           scheduledStart: dateOrNull(order.scheduledStart),

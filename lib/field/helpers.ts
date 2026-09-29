@@ -1,4 +1,5 @@
 import type { WorkOrder } from "@/lib/work-orders/types";
+import { isTechnicianAssignedToWorkOrder } from "@/lib/work-orders/field-technician-assignment";
 import type {
   CompletionChecklist,
   ConnectivityStatus,
@@ -25,17 +26,21 @@ function isSameDay(iso: string | null, day: Date): boolean {
 
 export function buildFieldHomeMetrics(input: {
   technicianName: string;
+  technicianUserId?: string;
   workOrders: WorkOrder[];
   connectivity: ConnectivityStatus;
   unsyncedChanges: number;
   pmsDueSoon?: number;
 }): FieldHomeMetrics {
   const today = startOfDay(new Date());
+  const identity = {
+    userId: input.technicianUserId ?? "",
+    technicianName: input.technicianName,
+  };
   const mine = input.workOrders.filter(
     (w) =>
-      !input.technicianName ||
-      w.assignedTechnician === input.technicianName ||
-      w.secondaryTechnician === input.technicianName,
+      (!input.technicianName && !input.technicianUserId) ||
+      isTechnicianAssignedToWorkOrder(identity, w),
   );
 
   const open = mine.filter(
@@ -72,14 +77,12 @@ export function filterFieldWorkOrders(
   packages: OfflinePackage[],
   search: string,
   technicianName?: string,
+  technicianUserId?: string,
 ): WorkOrder[] {
   let list = orders;
-  if (technicianName) {
-    list = list.filter(
-      (w) =>
-        w.assignedTechnician === technicianName ||
-        w.secondaryTechnician === technicianName,
-    );
+  if (technicianName || technicianUserId) {
+    const identity = { userId: technicianUserId ?? "", technicianName };
+    list = list.filter((w) => isTechnicianAssignedToWorkOrder(identity, w));
   }
 
   const today = startOfDay(new Date());

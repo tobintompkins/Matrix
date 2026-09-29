@@ -4,6 +4,8 @@ import { startTransition, useCallback, useEffect, useState } from "react";
 import FieldShell from "../FieldShell";
 import { useFieldIdentity } from "../FieldIdentityProvider";
 import { canViewOtherTechniciansField } from "@/lib/auth/field-permissions";
+import FieldDeviceVerificationChecklist from "./FieldDeviceVerificationChecklist";
+import FieldReleaseReadinessCard from "./FieldReleaseReadinessCard";
 
 type Receipt = {
   operationId: string;
@@ -131,6 +133,8 @@ export default function FieldSyncInboxPage() {
       <button type="button" disabled={processing} onClick={() => void processReceipts()} className="mb-4 ml-2 min-h-11 rounded-lg bg-cyan-500 px-4 text-sm font-semibold text-slate-950 disabled:opacity-50">{processing ? "Processing…" : "Process Received Receipts"}</button>
       {lastProcessedAt && <p className="mb-4 text-xs text-slate-400">Last processed: {new Date(lastProcessedAt).toLocaleString()}</p>}
       {notice && <p role="status" className="mb-4 rounded-xl border border-cyan-800/50 bg-cyan-950/40 p-3 text-sm text-cyan-100">{notice}</p>}
+      <FieldReleaseReadinessCard />
+      <FieldDeviceVerificationChecklist />
       <section className="mb-5 rounded-xl border border-slate-700 bg-slate-900 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div><h2 className="font-semibold">Server Work-Order Readiness</h2><p className="mt-1 text-xs text-slate-400">Read-only check before the durable work-order bridge is enabled.</p></div>

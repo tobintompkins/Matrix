@@ -193,6 +193,8 @@ export function buildWorkOrderFromInput(
     source: input.source ?? "CUSTOMER_REQUEST",
     assignedTechnician: input.assignedTechnician?.trim() ?? "",
     secondaryTechnician: input.secondaryTechnician?.trim() ?? "",
+    assignedTechnicianId: input.assignedTechnicianId?.trim() ?? "",
+    secondaryTechnicianId: input.secondaryTechnicianId?.trim() ?? "",
     requestedBy: input.requestedBy?.trim() ?? input.createdBy,
     createdBy: input.createdBy,
     scheduledStart: input.scheduledStart ?? null,

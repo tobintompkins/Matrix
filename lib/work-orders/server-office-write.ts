@@ -11,6 +11,7 @@ import {
   validateCreateWorkOrderInput,
 } from "@/lib/work-orders/helpers";
 import { assertWorkOrderTransition } from "@/lib/work-orders/workflow";
+import { parseOptionalTechnicianId } from "@/lib/work-orders/field-technician-assignment";
 import type {
   CreateWorkOrderInput,
   WorkOrder,
@@ -38,10 +39,15 @@ type AuditSpec = {
 };
 
 export function resolveInitialServerWorkOrderStatus(
-  input: Pick<CreateWorkOrderInput, "asDraft" | "assignedTechnician">,
+  input: Pick<
+    CreateWorkOrderInput,
+    "asDraft" | "assignedTechnician" | "assignedTechnicianId"
+  >,
 ): WorkOrderStatus {
   if (input.asDraft) return "DRAFT";
-  if (input.assignedTechnician?.trim()) return "ASSIGNED";
+  if (input.assignedTechnician?.trim() || input.assignedTechnicianId?.trim()) {
+    return "ASSIGNED";
+  }
   return "NEW";
 }
 
@@ -163,6 +169,8 @@ export async function createServerWorkOrderForOffice(
         source: input.source ?? "DISPATCH",
         assignedTechnician: input.assignedTechnician?.trim() || null,
         secondaryTechnician: input.secondaryTechnician?.trim() || null,
+        assignedTechnicianId: parseOptionalTechnicianId(input.assignedTechnicianId) ?? null,
+        secondaryTechnicianId: parseOptionalTechnicianId(input.secondaryTechnicianId) ?? null,
         requestedBy: input.requestedBy?.trim() || input.createdBy,
         createdBy: input.createdBy.trim() || actor,
         scheduledStart: parseOfficeDate(input.scheduledStart ?? null) ?? null,
@@ -196,14 +204,17 @@ export async function createServerWorkOrderForOffice(
       },
     });
 
-    if (input.assignedTechnician?.trim()) {
+    if (input.assignedTechnician?.trim() || input.assignedTechnicianId?.trim()) {
       await tx.workOrderTimelineEvent.create({
         data: {
           workOrderId: order.id,
           type: "ASSIGNED",
           title: "Technician assigned",
           actor,
-          newValue: input.assignedTechnician.trim(),
+          newValue:
+            input.assignedTechnician?.trim() ||
+            input.assignedTechnicianId?.trim() ||
+            null,
         },
       });
     }
@@ -220,7 +231,12 @@ export async function createServerWorkOrderForOffice(
 
 export async function updateServerWorkOrderAssignmentForOffice(
   key: string,
-  body: { assignedTechnician?: unknown; secondaryTechnician?: unknown },
+  body: {
+    assignedTechnician?: unknown;
+    secondaryTechnician?: unknown;
+    assignedTechnicianId?: unknown;
+    secondaryTechnicianId?: unknown;
+  },
   actor: string,
 ): Promise<ServerWriteResult> {
   const order = await resolveWorkOrderRow(key);
@@ -234,6 +250,14 @@ export async function updateServerWorkOrderAssignmentForOffice(
     body.secondaryTechnician === undefined
       ? order.secondaryTechnician
       : stringOrNull(body.secondaryTechnician)?.trim() || null;
+  const assignedId =
+    body.assignedTechnicianId === undefined
+      ? order.assignedTechnicianId
+      : parseOptionalTechnicianId(body.assignedTechnicianId) ?? null;
+  const secondaryId =
+    body.secondaryTechnicianId === undefined
+      ? order.secondaryTechnicianId
+      : parseOptionalTechnicianId(body.secondaryTechnicianId) ?? null;
 
   const audits: AuditSpec[] = [];
   if (assigned !== order.assignedTechnician) {
@@ -252,6 +276,22 @@ export async function updateServerWorkOrderAssignmentForOffice(
       action: "ASSIGNMENT_UPDATED",
     });
   }
+  if (assignedId !== order.assignedTechnicianId) {
+    audits.push({
+      field: "assignedTechnicianId",
+      previousValue: order.assignedTechnicianId,
+      newValue: assignedId,
+      action: "ASSIGNMENT_UPDATED",
+    });
+  }
+  if (secondaryId !== order.secondaryTechnicianId) {
+    audits.push({
+      field: "secondaryTechnicianId",
+      previousValue: order.secondaryTechnicianId,
+      newValue: secondaryId,
+      action: "ASSIGNMENT_UPDATED",
+    });
+  }
   if (audits.length === 0) {
     return { ok: false, error: "No assignment changes provided.", status: 400 };
   }
@@ -259,7 +299,12 @@ export async function updateServerWorkOrderAssignmentForOffice(
   return applyMutation(
     order.id,
     actor,
-    { assignedTechnician: assigned, secondaryTechnician: secondary },
+    {
+      assignedTechnician: assigned,
+      secondaryTechnician: secondary,
+      assignedTechnicianId: assignedId,
+      secondaryTechnicianId: secondaryId,
+    },
     {
       type: "ASSIGNED",
       title: "Assignment updated",

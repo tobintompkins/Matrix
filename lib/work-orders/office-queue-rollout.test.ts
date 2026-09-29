@@ -17,14 +17,21 @@ describe("office queue rollout", () => {
     assert.equal(useServerOfficeQueueSource(resolution), false);
   });
 
-  it("uses server queue for managers when flag is on and guard is ready", () => {
+  it("uses server queue for the approved pilot manager when flag and guard are ready", () => {
     const resolution = resolveOfficeQueueRollout({
       officeFlagEnabled: true,
       isManager: true,
       guardCheck: { state: "ready", guardReady: true, blockedReasons: [] },
+      configuredPilotManager: "manager@sfx.example",
+      pilotCheck: {
+        state: "ready",
+        pilotManagerConfigured: true,
+        signoffStatus: "approved",
+        isNamedPilotManager: true,
+      },
     });
     assert.equal(resolution.source, "server");
-    assert.equal(resolution.indicator, "server-active");
+    assert.equal(resolution.indicator, "server-active-pilot");
   });
 
   it("falls back to browser for non-managers when the flag is on", () => {

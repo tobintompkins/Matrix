@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MatrixButton, MatrixCard } from "../components/ui";
+import { useOfficeQueueRollout } from "./useOfficeQueueRollout";
+import { createServerOfficeWorkOrder } from "@/lib/work-orders/office-server-mutations";
 import {
   createWorkOrder,
   DEFAULT_SERVICE_TYPE_CONFIGS,
@@ -10,9 +12,17 @@ import {
   type WorkOrderServiceType,
 } from "@/lib/work-orders";
 
-export default function WorkOrderCreateForm() {
+type Props = {
+  serverOfficeQueueEnabled?: boolean;
+};
+
+export default function WorkOrderCreateForm({
+  serverOfficeQueueEnabled = false,
+}: Props) {
   const router = useRouter();
+  const { useServerQueue } = useOfficeQueueRollout(serverOfficeQueueEnabled);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [customerName, setCustomerName] = useState("SFX / MPX");
@@ -24,8 +34,10 @@ export default function WorkOrderCreateForm() {
   const [technician, setTechnician] = useState("");
   const [asDraft, setAsDraft] = useState(false);
 
-  function submit() {
-    const result = createWorkOrder({
+  async function submit() {
+    setSubmitting(true);
+    setError("");
+    const input = {
       title,
       description,
       customerName,
@@ -36,7 +48,21 @@ export default function WorkOrderCreateForm() {
       assignedTechnician: technician,
       createdBy: "Matrix User",
       asDraft,
-    });
+    };
+
+    if (useServerQueue) {
+      const result = await createServerOfficeWorkOrder(input);
+      setSubmitting(false);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.push(`/work-orders/${result.workOrder.id}`);
+      return;
+    }
+
+    const result = createWorkOrder(input);
+    setSubmitting(false);
     if (!result.ok) {
       setError(result.error);
       return;
@@ -45,7 +71,14 @@ export default function WorkOrderCreateForm() {
   }
 
   return (
-    <MatrixCard title="Create Work Order" subtitle="Auto-numbers as WO-YYYY-000001">
+    <MatrixCard
+      title="Create Work Order"
+      subtitle={
+        useServerQueue
+          ? "Creates a durable server record when rollout allows the server queue."
+          : "Auto-numbers as WO-YYYY-000001 in the browser queue."
+      }
+    >
       {error && (
         <p className="mb-4 text-sm text-rose-400">{error}</p>
       )}
@@ -84,7 +117,7 @@ export default function WorkOrderCreateForm() {
           />
         </label>
         <label className="block text-sm md:col-span-2">
-          <span className="text-slate-400">Address</span>
+          <span className="text-slate-400">Site address</span>
           <input
             className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
             value={siteAddress}
@@ -92,17 +125,15 @@ export default function WorkOrderCreateForm() {
           />
         </label>
         <label className="block text-sm">
-          <span className="text-slate-400">Service Type</span>
+          <span className="text-slate-400">Service type</span>
           <select
             className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
             value={serviceType}
-            onChange={(e) =>
-              setServiceType(e.target.value as WorkOrderServiceType)
-            }
+            onChange={(e) => setServiceType(e.target.value as WorkOrderServiceType)}
           >
-            {DEFAULT_SERVICE_TYPE_CONFIGS.map((t) => (
-              <option key={t.code} value={t.code}>
-                {t.label}
+            {DEFAULT_SERVICE_TYPE_CONFIGS.filter((c) => c.active).map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label}
               </option>
             ))}
           </select>
@@ -121,29 +152,21 @@ export default function WorkOrderCreateForm() {
           </select>
         </label>
         <label className="block text-sm md:col-span-2">
-          <span className="text-slate-400">Assigned Technician</span>
+          <span className="text-slate-400">Assigned technician (optional)</span>
           <input
             className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
             value={technician}
             onChange={(e) => setTechnician(e.target.value)}
-            placeholder="Optional — leave blank for New"
           />
         </label>
-        <label className="inline-flex items-center gap-2 text-sm text-slate-300">
-          <input
-            type="checkbox"
-            checked={asDraft}
-            onChange={(e) => setAsDraft(e.target.checked)}
-          />
-          Save as Draft
+        <label className="flex items-center gap-2 text-sm md:col-span-2">
+          <input type="checkbox" checked={asDraft} onChange={(e) => setAsDraft(e.target.checked)} />
+          Save as draft
         </label>
       </div>
-      <div className="mt-6 flex gap-2">
-        <MatrixButton variant="primary" size="md" onClick={submit}>
-          Create Work Order
-        </MatrixButton>
-        <MatrixButton href="/work-orders" variant="secondary" size="md">
-          Cancel
+      <div className="mt-6 flex gap-3">
+        <MatrixButton variant="primary" disabled={submitting} onClick={() => void submit()}>
+          {submitting ? "Creating…" : "Create Work Order"}
         </MatrixButton>
       </div>
     </MatrixCard>

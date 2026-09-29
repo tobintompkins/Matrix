@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import OfficeQueueRolloutBanner from "./OfficeQueueRolloutBanner";
+import WorkOrdersOfficePilotCard from "./WorkOrdersOfficePilotCard";
+import WorkOrdersOfficeDispatcherGroupCard from "./WorkOrdersOfficeDispatcherGroupCard";
+import WorkOrdersOfficeRoleExpansionCard from "./WorkOrdersOfficeRoleExpansionCard";
+import WorkOrdersOfficeRolloutExpansionReviewCard from "./WorkOrdersOfficeRolloutExpansionReviewCard";
+import WorkOrdersOfficePilotMonitoringCard from "./WorkOrdersOfficePilotMonitoringCard";
+import WorkOrdersOfficeRollbackCard from "./WorkOrdersOfficeRollbackCard";
 import WorkOrdersOfficeRolloutGuardCard from "./WorkOrdersOfficeRolloutGuardCard";
 import WorkOrdersServerCompareCard from "./WorkOrdersServerCompareCard";
 import { useOfficeQueueRollout } from "./useOfficeQueueRollout";
@@ -243,6 +249,12 @@ export default function WorkOrdersDashboardPanel({
 
       <WorkOrdersServerCompareCard />
       <WorkOrdersOfficeRolloutGuardCard />
+      <WorkOrdersOfficeRollbackCard />
+      <WorkOrdersOfficePilotCard />
+      <WorkOrdersOfficePilotMonitoringCard />
+      <WorkOrdersOfficeDispatcherGroupCard />
+      <WorkOrdersOfficeRoleExpansionCard />
+      <WorkOrdersOfficeRolloutExpansionReviewCard />
 
       <MatrixCard title="Server Work-Order Copy" subtitle="Copies the current browser queue to durable server records. Existing server records are never changed.">
         <div className="flex flex-wrap items-center gap-3">

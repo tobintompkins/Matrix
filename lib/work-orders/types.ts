@@ -152,6 +152,9 @@ export type WorkOrder = {
   source: WorkOrderSource;
   assignedTechnician: string;
   secondaryTechnician: string;
+  /** Clerk user id when office/server assignment stores durable Field identity. */
+  assignedTechnicianId?: string | null;
+  secondaryTechnicianId?: string | null;
   requestedBy: string;
   createdBy: string;
   scheduledStart: string | null;
@@ -197,6 +200,8 @@ export type CreateWorkOrderInput = {
   source?: WorkOrderSource;
   assignedTechnician?: string;
   secondaryTechnician?: string;
+  assignedTechnicianId?: string | null;
+  secondaryTechnicianId?: string | null;
   requestedBy?: string;
   createdBy: string;
   scheduledStart?: string | null;

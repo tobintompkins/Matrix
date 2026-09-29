@@ -8,13 +8,19 @@ type Props = {
 export default function OfficeQueueRolloutBanner({ rollout, context }: Props) {
   if (rollout.indicator === "browser-default") return null;
 
-  const tone =
-    rollout.indicator === "server-active"
-      ? "border-cyan-800/60 bg-cyan-950/40 text-cyan-100"
-      : "border-amber-800/60 bg-amber-950/40 text-amber-100";
+  const serverActive =
+    rollout.indicator === "server-active" ||
+    rollout.indicator === "server-active-pilot" ||
+    rollout.indicator === "server-active-dispatcher" ||
+    rollout.indicator === "server-active-role" ||
+    rollout.indicator === "server-active-expansion-review";
+
+  const tone = serverActive
+    ? "border-cyan-800/60 bg-cyan-950/40 text-cyan-100"
+    : "border-amber-800/60 bg-amber-950/40 text-amber-100";
 
   const detailNote =
-    context === "detail" && rollout.indicator === "server-active"
+    context === "detail" && serverActive
       ? " Browser edits are disabled while the server queue is active for this manager."
       : context === "detail" && rollout.indicator === "browser-rollback"
         ? " This detail view reads from the browser queue."

@@ -400,6 +400,9 @@ model WorkOrder {
   source               String?
   assignedTechnician   String?
   secondaryTechnician  String?
+  /// Clerk Matrix user id (primary field technician) — name fields remain during migration.
+  assignedTechnicianId  String?
+  secondaryTechnicianId String?
   requestedBy          String?
   createdBy            String?
   scheduledStart       DateTime?
@@ -431,6 +434,8 @@ model WorkOrder {
 
   @@index([status, priority])
   @@index([assignedTechnician, scheduledStart])
+  @@index([assignedTechnicianId])
+  @@index([secondaryTechnicianId])
   @@index([printerId])
   @@index([customerId])
 }
@@ -1255,6 +1260,27 @@ model OfflineOperation {
   @@index([status, createdAt])
   @@index([userId, status])
   @@index([workOrderId])
+}
+
+/// Manager-finalized Field real-device verification (51B.2.13); local checklist remains the draft.
+model FieldDeviceVerificationSubmission {
+  id                  String   @id @default(cuid())
+  submittedAt         DateTime @default(now())
+  submittedByUserId   String
+  submittedByName     String?
+  testerName          String
+  deviceLabel         String
+  browserLabel        String
+  testDate            String
+  notes               String?
+  releaseResult       String
+  passedCount         Int
+  failedCount         Int
+  checksJson          String
+  localDraftUpdatedAt String?
+
+  @@index([submittedAt])
+  @@index([submittedByUserId])
 }
 
 model SyncAttempt {
