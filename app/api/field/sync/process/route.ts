@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
 import { requireMatrixPermission } from "@/lib/auth/server";
 import { hasConfiguredFieldApiIdentity } from "@/lib/field/api-authorization";
+import { recordFieldSyncProcessRun } from "@/lib/field/field-sync-process-audit";
 import {
   processReceivedFieldAttachments,
   processReceivedFieldCompletions,
+  processReceivedFieldCopyCounts,
+  processReceivedFieldMaintenanceCompletions,
   processReceivedFieldNotes,
   processReceivedFieldParts,
   processReceivedFieldPhotos,
+  processReceivedFieldSignatures,
   processReceivedFieldStatuses,
 } from "@/lib/field/server-sync-processor";
 
-/** Manager-only: apply validated field sync receipts (notes, statuses, completions, photos, attachments, parts). */
+/** Manager-only: apply validated Field receipts including signatures and copy counts. */
 export async function POST(request: Request) {
   const authResult = await requireMatrixPermission("VIEW_FIELD_ALL_TECHNICIANS");
   if (!authResult.ok) return authResult.response;
@@ -24,8 +28,23 @@ export async function POST(request: Request) {
   const notes = await processReceivedFieldNotes(limit);
   const statuses = await processReceivedFieldStatuses(limit);
   const completions = await processReceivedFieldCompletions(limit);
+  const copyCounts = await processReceivedFieldCopyCounts(limit);
+  const maintenance = await processReceivedFieldMaintenanceCompletions(limit);
   const photos = await processReceivedFieldPhotos(limit);
   const attachments = await processReceivedFieldAttachments(limit);
+  const signatures = await processReceivedFieldSignatures(limit);
   const parts = await processReceivedFieldParts(limit);
-  return NextResponse.json({ ok: true, notes, statuses, completions, photos, attachments, parts });
+  const results = { notes, statuses, completions, copyCounts, maintenance, photos, attachments, signatures, parts };
+  let auditWarning: string | null = null;
+  try {
+    await recordFieldSyncProcessRun({
+      actorId: authResult.userId,
+      actorDisplayName: authResult.profile.displayName?.trim() || authResult.userId,
+      limit,
+      results,
+    });
+  } catch {
+    auditWarning = "Receipt processing completed, but its audit record could not be saved.";
+  }
+  return NextResponse.json({ ok: true, ...results, auditWarning });
 }

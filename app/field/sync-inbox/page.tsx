@@ -5,7 +5,18 @@ import FieldShell from "../FieldShell";
 import { useFieldIdentity } from "../FieldIdentityProvider";
 import { canViewOtherTechniciansField } from "@/lib/auth/field-permissions";
 import FieldDeviceVerificationChecklist from "./FieldDeviceVerificationChecklist";
+import FieldOperationalReleaseGateCard from "./FieldOperationalReleaseGateCard";
+import FieldSyncOperationsCard from "./FieldSyncOperationsCard";
+import FieldTechnicianIdBackfillExportCard from "./FieldTechnicianIdBackfillExportCard";
+import FieldTechnicianIdBackfillPreviewCard from "./FieldTechnicianIdBackfillPreviewCard";
+import FieldTechnicianIdCoverageCard from "./FieldTechnicianIdCoverageCard";
+import FieldSyncProcessHistoryCard from "./FieldSyncProcessHistoryCard";
+import FieldSyncReceiptReviewQueue from "./FieldSyncReceiptReviewQueue";
 import FieldReleaseReadinessCard from "./FieldReleaseReadinessCard";
+import {
+  FIELD_SYNC_PROCESS_BATCH_LIMITS,
+  toFieldSyncProcessBatchLimit,
+} from "@/lib/field/sync-process-batch";
 
 type Receipt = {
   operationId: string;
@@ -36,6 +47,7 @@ export default function FieldSyncInboxPage() {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [notice, setNotice] = useState("Loading server receipts…");
   const [processing, setProcessing] = useState(false);
+  const [processBatchLimit, setProcessBatchLimit] = useState(25);
   const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
   const [readiness, setReadiness] = useState<WorkOrderReadiness | null>(null);
   const [readinessNotice, setReadinessNotice] = useState("");
@@ -104,21 +116,24 @@ export default function FieldSyncInboxPage() {
     setProcessing(true);
     setNotice("Processing received Field receipts…");
     try {
-      const response = await fetch("/api/field/sync/process", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+      const response = await fetch("/api/field/sync/process", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ limit: processBatchLimit }) });
       const body = await response.json() as {
         notes?: { applied?: number; waiting?: number };
         statuses?: { applied?: number; waiting?: number };
         completions?: { applied?: number; waiting?: number };
+        copyCounts?: { applied?: number; waiting?: number };
+        maintenance?: { applied?: number; waiting?: number };
         photos?: { applied?: number; waiting?: number };
         attachments?: { applied?: number; waiting?: number };
+        signatures?: { applied?: number; waiting?: number };
         parts?: { applied?: number; waiting?: number };
         error?: string;
       };
       if (!response.ok) throw new Error(body.error ?? "Could not process Field receipts.");
       setLastProcessedAt(new Date().toISOString());
-      const processed = body as { notes?: { applied?: number }; statuses?: { applied?: number }; completions?: { applied?: number }; photos?: { applied?: number }; attachments?: { applied?: number }; parts?: { applied?: number } };
+      const processed = body as { notes?: { applied?: number }; statuses?: { applied?: number }; completions?: { applied?: number }; copyCounts?: { applied?: number }; maintenance?: { applied?: number }; photos?: { applied?: number }; attachments?: { applied?: number }; signatures?: { applied?: number }; parts?: { applied?: number } };
       await load();
-      startTransition(() => setNotice(`Processed: ${processed.notes?.applied ?? 0} notes, ${processed.statuses?.applied ?? 0} status changes, ${processed.completions?.applied ?? 0} completions, ${processed.photos?.applied ?? 0} photos, ${processed.attachments?.applied ?? 0} attachments, and ${processed.parts?.applied ?? 0} parts entries.`));
+      startTransition(() => setNotice(`Processed up to ${processBatchLimit} of each receipt type: ${processed.notes?.applied ?? 0} notes, ${processed.statuses?.applied ?? 0} status changes, ${processed.completions?.applied ?? 0} completions, ${processed.copyCounts?.applied ?? 0} copy counts, ${processed.maintenance?.applied ?? 0} maintenance records, ${processed.photos?.applied ?? 0} photos, ${processed.attachments?.applied ?? 0} attachments, ${processed.signatures?.applied ?? 0} signatures, and ${processed.parts?.applied ?? 0} parts entries.`));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not process Field receipts.");
     } finally {
@@ -130,9 +145,20 @@ export default function FieldSyncInboxPage() {
     <FieldShell title="Sync Inbox">
       <p className="mb-4 text-sm text-slate-300">Server receipts are proof that Matrix received an authorized Field change. They are waiting for the next processing step and do not yet mean a work order was updated.</p>
       <button type="button" onClick={() => { setNotice("Loading server receipts…"); void load(); }} className="mb-4 min-h-11 rounded-lg border border-slate-600 px-4 text-sm font-semibold">Refresh</button>
+      <label className="mb-4 ml-2 inline-flex min-h-11 items-center gap-2 text-xs text-slate-300">Processing batch
+        <select value={processBatchLimit} disabled={processing} onChange={(event) => setProcessBatchLimit(toFieldSyncProcessBatchLimit(event.target.value))} className="min-h-11 rounded-lg border border-slate-600 bg-slate-950 px-2 text-sm text-slate-100 disabled:opacity-50">
+          {FIELD_SYNC_PROCESS_BATCH_LIMITS.map((limit) => <option key={limit} value={limit}>{limit} per type</option>)}
+        </select>
+      </label>
       <button type="button" disabled={processing} onClick={() => void processReceipts()} className="mb-4 ml-2 min-h-11 rounded-lg bg-cyan-500 px-4 text-sm font-semibold text-slate-950 disabled:opacity-50">{processing ? "Processing…" : "Process Received Receipts"}</button>
       {lastProcessedAt && <p className="mb-4 text-xs text-slate-400">Last processed: {new Date(lastProcessedAt).toLocaleString()}</p>}
       {notice && <p role="status" className="mb-4 rounded-xl border border-cyan-800/50 bg-cyan-950/40 p-3 text-sm text-cyan-100">{notice}</p>}
+      <FieldOperationalReleaseGateCard />
+      <FieldSyncOperationsCard />
+      <FieldTechnicianIdCoverageCard />
+      <FieldTechnicianIdBackfillExportCard />
+      <FieldTechnicianIdBackfillPreviewCard />
+      <FieldSyncProcessHistoryCard />
       <FieldReleaseReadinessCard />
       <FieldDeviceVerificationChecklist />
       <section className="mb-5 rounded-xl border border-slate-700 bg-slate-900 p-4">
@@ -152,16 +178,7 @@ export default function FieldSyncInboxPage() {
         {rollout && <p className="mt-3 text-sm text-slate-300">Bridge: <span className="font-semibold">{rollout.enabled ? "enabled" : "off"}</span> · Pilot job: <span className="font-semibold">{rollout.pilotWorkOrder ?? "not selected"}</span></p>}
         {pilotValidation && <p className={pilotValidation.ready ? "mt-2 text-sm text-emerald-200" : "mt-2 text-sm text-amber-200"}>{pilotValidation.ready ? `Pilot job ${pilotValidation.workOrderNumber} is ready for a controlled test.` : pilotValidation.selected ? "Pilot job needs a durable record, technician assignment, schedule, and status before testing." : "Select one verified pilot job before enabling the bridge."}</p>}
       </section>
-      <ul className="space-y-3">
-        {receipts.length === 0 && !notice && <li className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-400">No server receipts yet.</li>}
-        {receipts.map((receipt) => (
-          <li key={receipt.operationId} className="rounded-xl border border-slate-800 bg-slate-900 p-4 text-sm">
-            <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{receipt.type.replaceAll("_", " ")}</p><p className="mt-1 text-xs text-slate-400">{receipt.technicianName ?? "Unknown technician"} · {new Date(receipt.createdAt).toLocaleString()}</p></div><span className="rounded-full bg-cyan-500/15 px-2 py-1 text-xs font-semibold text-cyan-200">{receipt.status}</span></div>
-            <p className="mt-2 text-xs text-slate-500">Work order: {receipt.workOrderId ?? "—"} · Printer: {receipt.printerId ?? "—"}</p>
-            {receipt.lastError && <p className="mt-2 text-xs text-rose-200">{receipt.lastError}</p>}
-          </li>
-        ))}
-      </ul>
+      <FieldSyncReceiptReviewQueue receipts={receipts} loading={notice.startsWith("Loading")} />
     </FieldShell>
   );
 }

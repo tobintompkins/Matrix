@@ -19,22 +19,31 @@ export default function FieldReleaseReadinessCard() {
   const [decisionNote, setDecisionNote] = useState("");
   const [acting, setActing] = useState(false);
 
+  const fetchReleaseReadiness = useCallback(async () => {
+    const response = await fetch("/api/field/release-readiness", { cache: "no-store" });
+    const body = (await response.json()) as {
+      readiness?: FieldReleaseReadinessSummary;
+      latestDecision?: FieldReleaseDecisionRecord;
+      recentDecisions?: FieldReleaseDecisionAuditEntry[];
+      error?: string;
+    };
+    if (!response.ok || !body.readiness) {
+      throw new Error(body.error ?? "Could not load Field release readiness.");
+    }
+    return {
+      readiness: body.readiness,
+      latestDecision: body.latestDecision ?? null,
+      recentDecisions: body.recentDecisions ?? [],
+    };
+  }, []);
+
   const load = useCallback(async () => {
     setNotice("Loading Field release readiness…");
     try {
-      const response = await fetch("/api/field/release-readiness", { cache: "no-store" });
-      const body = (await response.json()) as {
-        readiness?: FieldReleaseReadinessSummary;
-        latestDecision?: FieldReleaseDecisionRecord;
-        recentDecisions?: FieldReleaseDecisionAuditEntry[];
-        error?: string;
-      };
-      if (!response.ok || !body.readiness) {
-        throw new Error(body.error ?? "Could not load Field release readiness.");
-      }
-      setReadiness(body.readiness);
-      setLatestDecision(body.latestDecision ?? null);
-      setRecentDecisions(body.recentDecisions ?? []);
+      const data = await fetchReleaseReadiness();
+      setReadiness(data.readiness);
+      setLatestDecision(data.latestDecision);
+      setRecentDecisions(data.recentDecisions);
       setNotice("");
     } catch (error) {
       setReadiness(null);
@@ -42,11 +51,29 @@ export default function FieldReleaseReadinessCard() {
         error instanceof Error ? error.message : "Could not load Field release readiness.",
       );
     }
-  }, []);
+  }, [fetchReleaseReadiness]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let active = true;
+    void fetchReleaseReadiness()
+      .then((data) => {
+        if (!active) return;
+        setReadiness(data.readiness);
+        setLatestDecision(data.latestDecision);
+        setRecentDecisions(data.recentDecisions);
+        setNotice("");
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setReadiness(null);
+        setNotice(
+          error instanceof Error ? error.message : "Could not load Field release readiness.",
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, [fetchReleaseReadiness]);
 
   async function submitDecision(decision: "approve" | "hold" | "revoke") {
     if (acting) return;
@@ -81,6 +108,28 @@ export default function FieldReleaseReadinessCard() {
     }
   }
 
+  async function downloadReleaseEvidence() {
+    try {
+      const response = await fetch("/api/field/release-evidence", { cache: "no-store" });
+      const body = (await response.json()) as { evidence?: unknown; error?: string };
+      if (!response.ok || !body.evidence) {
+        throw new Error(body.error ?? "Could not prepare Field release evidence.");
+      }
+      const blob = new Blob([JSON.stringify(body.evidence, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `matrix-field-release-evidence-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setNotice("Field release evidence downloaded.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not prepare Field release evidence.");
+    }
+  }
+
   const tone =
     readiness?.state === "ready"
       ? "border-emerald-800/60 bg-emerald-950/30"
@@ -107,13 +156,22 @@ export default function FieldReleaseReadinessCard() {
             change sync, bridge, or office rollout.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="min-h-10 rounded-lg border border-slate-600 px-3 text-xs font-semibold text-slate-200"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void downloadReleaseEvidence()}
+            className="min-h-10 rounded-lg border border-cyan-700 px-3 text-xs font-semibold text-cyan-100"
+          >
+            Download evidence
+          </button>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="min-h-10 rounded-lg border border-slate-600 px-3 text-xs font-semibold text-slate-200"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {notice && <p className="mt-3 text-sm text-slate-300">{notice}</p>}
