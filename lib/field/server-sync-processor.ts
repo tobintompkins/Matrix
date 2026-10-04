@@ -9,6 +9,7 @@ import { validateFieldStatusReceipt } from "./status-receipt-validation";
 import { validateFieldSignatureReceipt } from "./signature-receipt-validation";
 import { validateFieldCopyCountReceipt } from "./copy-count-receipt-validation";
 import { validateFieldMaintenanceReceipt } from "./maintenance-receipt-validation";
+import { validateFieldWorkSessionReceipt } from "./work-session-receipt-validation";
 
 /**
  * Apply the safest first receipt type: a text note. Receipts without a real
@@ -372,6 +373,26 @@ export async function processReceivedFieldMaintenanceCompletions(limit = 25) {
     await prisma.$transaction([
       prisma.printer.update({ where: { id: printer.id }, data: { currentCopyCount: check.copyCount, ...baseline } }),
       prisma.maintenanceCompletion.create({ data: { printerId: printer.id, kind: check.kind, completedAt: now, copyCountAtCompletion: check.copyCount, technician: receipt.technicianName, notes: check.notes || null, workPerformed: check.workPerformed || null, previousCount: null, intervalAtCompletion: interval ?? null, recordedBy: receipt.technicianName, idempotencyKey: receipt.operationId } }),
+      prisma.offlineOperation.update({ where: { id: receipt.id }, data: { status: "APPLIED", synchronizedAt: now, lastError: null } }),
+    ]); applied += 1;
+  }
+  return { scanned: receipts.length, applied, waiting };
+}
+
+/** Store Field session actions as durable, auditable work-order events. Status changes remain separately validated. */
+export async function processReceivedFieldWorkSessions(limit = 25) {
+  const receipts = await prisma.offlineOperation.findMany({ where: { status: "RECEIVED", type: "WORK_SESSION" }, orderBy: { createdAt: "asc" }, take: limit });
+  let applied = 0; let waiting = 0;
+  for (const receipt of receipts) {
+    const check = validateFieldWorkSessionReceipt(JSON.parse(receipt.payload ?? "{}") as Record<string, unknown>);
+    if (!check.ok || !receipt.workOrderId) { await prisma.offlineOperation.update({ where: { id: receipt.id }, data: { status: "REJECTED", lastError: check.ok ? "A server work order is required." : check.error } }); continue; }
+    const workOrder = await prisma.workOrder.findUnique({ where: { id: receipt.workOrderId }, select: { id: true } });
+    if (!workOrder) { waiting += 1; continue; }
+    const now = new Date(); const active = ["BEGIN_TRAVEL", "ARRIVE_ON_SITE", "START_WORK", "RESUME_WORK"].includes(check.action);
+    await prisma.$transaction([
+      prisma.workSession.create({ data: { workOrderId: workOrder.id, technicianId: receipt.userId, technicianName: receipt.technicianName, active, travelStartedAt: check.action === "BEGIN_TRAVEL" ? now : null, arrivedAt: check.action === "ARRIVE_ON_SITE" ? now : null, workStartedAt: check.action === "START_WORK" || check.action === "RESUME_WORK" ? now : null, eventsJson: JSON.stringify([{ action: check.action, occurredAt: now.toISOString(), operationId: receipt.operationId }]) } }),
+      prisma.workOrderTimelineEvent.create({ data: { workOrderId: workOrder.id, type: "WORK_SESSION", title: check.action.replaceAll("_", " "), actor: receipt.technicianName, occurredAt: now, newValue: check.action } }),
+      prisma.workOrderAuditEntry.create({ data: { workOrderId: workOrder.id, field: "workSession", newValue: check.action, actor: receipt.technicianName, action: "FIELD_WORK_SESSION", occurredAt: now } }),
       prisma.offlineOperation.update({ where: { id: receipt.id }, data: { status: "APPLIED", synchronizedAt: now, lastError: null } }),
     ]); applied += 1;
   }

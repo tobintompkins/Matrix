@@ -7,6 +7,7 @@ import {
   processReceivedFieldCompletions,
   processReceivedFieldCopyCounts,
   processReceivedFieldMaintenanceCompletions,
+  processReceivedFieldWorkSessions,
   processReceivedFieldNotes,
   processReceivedFieldParts,
   processReceivedFieldPhotos,
@@ -30,11 +31,12 @@ export async function POST(request: Request) {
   const completions = await processReceivedFieldCompletions(limit);
   const copyCounts = await processReceivedFieldCopyCounts(limit);
   const maintenance = await processReceivedFieldMaintenanceCompletions(limit);
+  const workSessions = await processReceivedFieldWorkSessions(limit);
   const photos = await processReceivedFieldPhotos(limit);
   const attachments = await processReceivedFieldAttachments(limit);
   const signatures = await processReceivedFieldSignatures(limit);
   const parts = await processReceivedFieldParts(limit);
-  const results = { notes, statuses, completions, copyCounts, maintenance, photos, attachments, signatures, parts };
+  const results = { notes, statuses, completions, copyCounts, maintenance, workSessions, photos, attachments, signatures, parts };
   let auditWarning: string | null = null;
   try {
     await recordFieldSyncProcessRun({

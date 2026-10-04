@@ -31,6 +31,12 @@ export default function FieldSyncReceiptReviewQueue(props: {
     URL.revokeObjectURL(url);
   }
 
+  function setQueuePreset(nextStatus: typeof status) {
+    setStatus(nextStatus);
+    setType("ALL");
+    setQuery("");
+  }
+
   return (
     <section className="mb-5 rounded-xl border border-slate-700 bg-slate-900 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -41,10 +47,24 @@ export default function FieldSyncReceiptReviewQueue(props: {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => { setStatus("REJECTED"); setType("ALL"); setQuery(""); }}
+            onClick={() => setQueuePreset("RECEIVED")}
+            className="min-h-10 rounded-lg border border-amber-800 px-3 text-xs font-semibold text-amber-100"
+          >
+            Show waiting
+          </button>
+          <button
+            type="button"
+            onClick={() => setQueuePreset("REJECTED")}
             className="min-h-10 rounded-lg border border-rose-800 px-3 text-xs font-semibold text-rose-100"
           >
             Show review-needed
+          </button>
+          <button
+            type="button"
+            onClick={() => setQueuePreset("ALL")}
+            className="min-h-10 rounded-lg border border-slate-600 px-3 text-xs font-semibold text-slate-100"
+          >
+            Clear filters
           </button>
           <button
             type="button"
