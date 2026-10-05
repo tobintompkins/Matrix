@@ -10,6 +10,7 @@ import { validateFieldSignatureReceipt } from "./signature-receipt-validation";
 import { validateFieldCopyCountReceipt } from "./copy-count-receipt-validation";
 import { validateFieldMaintenanceReceipt } from "./maintenance-receipt-validation";
 import { validateFieldWorkSessionReceipt } from "./work-session-receipt-validation";
+import { validateFieldTimeEntryReceipt } from "./time-entry-receipt-validation";
 
 /**
  * Apply the safest first receipt type: a text note. Receipts without a real
@@ -393,6 +394,26 @@ export async function processReceivedFieldWorkSessions(limit = 25) {
       prisma.workSession.create({ data: { workOrderId: workOrder.id, technicianId: receipt.userId, technicianName: receipt.technicianName, active, travelStartedAt: check.action === "BEGIN_TRAVEL" ? now : null, arrivedAt: check.action === "ARRIVE_ON_SITE" ? now : null, workStartedAt: check.action === "START_WORK" || check.action === "RESUME_WORK" ? now : null, eventsJson: JSON.stringify([{ action: check.action, occurredAt: now.toISOString(), operationId: receipt.operationId }]) } }),
       prisma.workOrderTimelineEvent.create({ data: { workOrderId: workOrder.id, type: "WORK_SESSION", title: check.action.replaceAll("_", " "), actor: receipt.technicianName, occurredAt: now, newValue: check.action } }),
       prisma.workOrderAuditEntry.create({ data: { workOrderId: workOrder.id, field: "workSession", newValue: check.action, actor: receipt.technicianName, action: "FIELD_WORK_SESSION", occurredAt: now } }),
+      prisma.offlineOperation.update({ where: { id: receipt.id }, data: { status: "APPLIED", synchronizedAt: now, lastError: null } }),
+    ]); applied += 1;
+  }
+  return { scanned: receipts.length, applied, waiting };
+}
+
+/** Add a validated Field labor entry to the durable work-order total with an audit trail. */
+export async function processReceivedFieldTimeEntries(limit = 25) {
+  const receipts = await prisma.offlineOperation.findMany({ where: { status: "RECEIVED", type: "TIME_ENTRY" }, orderBy: { createdAt: "asc" }, take: limit });
+  let applied = 0; let waiting = 0;
+  for (const receipt of receipts) {
+    const check = validateFieldTimeEntryReceipt(JSON.parse(receipt.payload ?? "{}") as Record<string, unknown>);
+    if (!check.ok || !receipt.workOrderId) { await prisma.offlineOperation.update({ where: { id: receipt.id }, data: { status: "REJECTED", lastError: check.ok ? "A server work order is required." : check.error } }); continue; }
+    const order = await prisma.workOrder.findUnique({ where: { id: receipt.workOrderId }, select: { id: true, actualHours: true, laborRate: true } });
+    if (!order) { waiting += 1; continue; }
+    const now = new Date(); const totalHours = Math.round(((order.actualHours ?? 0) + check.hours) * 100) / 100; const laborCost = order.laborRate == null ? null : Math.round(totalHours * order.laborRate * 100) / 100;
+    await prisma.$transaction([
+      prisma.workOrder.update({ where: { id: order.id }, data: { actualHours: totalHours, laborCost } }),
+      prisma.workOrderTimelineEvent.create({ data: { workOrderId: order.id, type: "TIME_ENTRY", title: "Field Time Entry", description: check.note || null, actor: receipt.technicianName, previousValue: String(order.actualHours ?? 0), newValue: String(totalHours), occurredAt: now } }),
+      prisma.workOrderAuditEntry.create({ data: { workOrderId: order.id, field: "actualHours", previousValue: String(order.actualHours ?? 0), newValue: String(totalHours), actor: receipt.technicianName, action: "FIELD_TIME_ENTRY", occurredAt: now } }),
       prisma.offlineOperation.update({ where: { id: receipt.id }, data: { status: "APPLIED", synchronizedAt: now, lastError: null } }),
     ]); applied += 1;
   }

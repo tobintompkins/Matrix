@@ -43,6 +43,12 @@ export default function FieldSyncProcessHistoryCard() {
     };
   }, [fetchRuns]);
 
+  useEffect(() => {
+    const refreshAfterProcessing = () => void load();
+    window.addEventListener("matrix-field-receipts-processed", refreshAfterProcessing);
+    return () => window.removeEventListener("matrix-field-receipts-processed", refreshAfterProcessing);
+  }, [load]);
+
   return (
     <section className="mb-5 rounded-xl border border-slate-700 bg-slate-900 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">

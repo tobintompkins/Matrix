@@ -124,6 +124,7 @@ export default function FieldSyncInboxPage() {
         copyCounts?: { applied?: number; waiting?: number };
         maintenance?: { applied?: number; waiting?: number };
         workSessions?: { applied?: number; waiting?: number };
+        timeEntries?: { applied?: number; waiting?: number };
         photos?: { applied?: number; waiting?: number };
         attachments?: { applied?: number; waiting?: number };
         signatures?: { applied?: number; waiting?: number };
@@ -132,9 +133,10 @@ export default function FieldSyncInboxPage() {
       };
       if (!response.ok) throw new Error(body.error ?? "Could not process Field receipts.");
       setLastProcessedAt(new Date().toISOString());
-      const processed = body as { notes?: { applied?: number }; statuses?: { applied?: number }; completions?: { applied?: number }; copyCounts?: { applied?: number }; maintenance?: { applied?: number }; workSessions?: { applied?: number }; photos?: { applied?: number }; attachments?: { applied?: number }; signatures?: { applied?: number }; parts?: { applied?: number } };
+      const processed = body as { notes?: { applied?: number }; statuses?: { applied?: number }; completions?: { applied?: number }; copyCounts?: { applied?: number }; maintenance?: { applied?: number }; workSessions?: { applied?: number }; timeEntries?: { applied?: number }; photos?: { applied?: number }; attachments?: { applied?: number }; signatures?: { applied?: number }; parts?: { applied?: number } };
       await load();
-      startTransition(() => setNotice(`Processed up to ${processBatchLimit} of each receipt type: ${processed.notes?.applied ?? 0} notes, ${processed.statuses?.applied ?? 0} status changes, ${processed.workSessions?.applied ?? 0} work sessions, ${processed.completions?.applied ?? 0} completions, ${processed.copyCounts?.applied ?? 0} copy counts, ${processed.maintenance?.applied ?? 0} maintenance records, ${processed.photos?.applied ?? 0} photos, ${processed.attachments?.applied ?? 0} attachments, ${processed.signatures?.applied ?? 0} signatures, and ${processed.parts?.applied ?? 0} parts entries.`));
+      window.dispatchEvent(new Event("matrix-field-receipts-processed"));
+      startTransition(() => setNotice(`Processed up to ${processBatchLimit} of each receipt type: ${processed.notes?.applied ?? 0} notes, ${processed.statuses?.applied ?? 0} status changes, ${processed.workSessions?.applied ?? 0} work sessions, ${processed.timeEntries?.applied ?? 0} time entries, ${processed.completions?.applied ?? 0} completions, ${processed.copyCounts?.applied ?? 0} copy counts, ${processed.maintenance?.applied ?? 0} maintenance records, ${processed.photos?.applied ?? 0} photos, ${processed.attachments?.applied ?? 0} attachments, ${processed.signatures?.applied ?? 0} signatures, and ${processed.parts?.applied ?? 0} parts entries.`));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not process Field receipts.");
     } finally {
